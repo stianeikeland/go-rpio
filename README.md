@@ -1,9 +1,9 @@
 go-rpio
 =======
 
-Native GPIO-Gophers for your Pi! 
+Native GPIO-Gophers for your Pi!
 
-go-rpio is a Go library for accessing [GPIO](http://elinux.org/Rpi_Low-level_peripherals)-pins 
+go-rpio is a Go library for accessing [GPIO](http://elinux.org/Rpi_Low-level_peripherals)-pins
 on the [Raspberry Pi](https://en.wikipedia.org/wiki/Raspberry_Pi).
 
 It requires no external c libraries such as
@@ -22,7 +22,7 @@ err := rpio.Open()
 ```
 
 Initialize a pin, run basic operations.
-Pin refers to the bcm2835 pin, not the physical pin on the raspberry pi header. Pin 10 here is exposed on the pin header as physical pin 19. 
+Pin refers to the bcm2835 pin, not the physical pin on the raspberry pi header. Pin 10 here is exposed on the pin header as physical pin 19.
 
 ```go
 pin := rpio.Pin(10)
@@ -39,6 +39,16 @@ pin.Mode(rpio.Output)   // Alternative syntax
 pin.Write(rpio.High)    // Alternative syntax
 ```
 
+Pull up/down/off can be set using:
+
+```go
+pin.PullUp()
+pin.PullDown()
+pin.PullOff()
+
+pin.Pull(rpio.PullUp)
+```
+
 Unmap memory when done
 
 ```go
@@ -53,11 +63,10 @@ Currently, it supports basic functionality such as:
 - Pin Direction (Input / Output)
 - Write (High / Low)
 - Read (High / Low)
+- Pull (Up / Down / Off)
 
 Would be nice to add in the future:
 - PWM
-- PullUp
-- PullDown
 - I2C
 - SPI
 - etc...

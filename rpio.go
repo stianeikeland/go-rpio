@@ -7,6 +7,7 @@ Supports simple operations such as:
 - Pin mode/direction (input/output)
 - Pin write (high/low)
 - Pin read (high/low)
+- Pull up/down/off
 
 Example of use:
 
@@ -59,12 +60,14 @@ import (
 	"reflect"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
 type Direction uint8
 type Pin uint8
 type State uint8
+type Pull uint8
 
 // Memory offsets for gpio, see the spec for more details
 const (
@@ -85,6 +88,13 @@ const (
 const (
 	Low State = iota
 	High
+)
+
+// Pull Up / Down / Off
+const (
+	PullOff Pull = iota
+	PullDown
+	PullUp
 )
 
 // Arrays for 8 / 32 bit access to memory and a semaphore for write locking
@@ -132,6 +142,26 @@ func (pin Pin) Write(state State) {
 // Read pin state (high/low)
 func (pin Pin) Read() State {
 	return ReadPin(pin)
+}
+
+// Set a given pull up/down mode
+func (pin Pin) Pull(pull Pull) {
+	PullMode(pin, pull)
+}
+
+// Pull up pin
+func (pin Pin) PullUp() {
+	PullMode(pin, PullUp)
+}
+
+// Pull down pin
+func (pin Pin) PullDown() {
+	PullMode(pin, PullDown)
+}
+
+// Disable pullup/down on pin
+func (pin Pin) PullOff() {
+	PullMode(pin, PullOff)
 }
 
 // WritePin sets the direction of a given pin (Input or Output)
@@ -195,6 +225,36 @@ func TogglePin(pin Pin) {
 	case High:
 		pin.Low()
 	}
+}
+
+func PullMode(pin Pin, pull Pull) {
+	// Pull up/down/off register has offset 38 / 39, pull is 37
+	pullClkReg := uint8(pin)/32 + 38
+	pullReg := 37
+	shift := (uint8(pin) % 32)
+
+	memlock.Lock()
+
+	switch pull {
+	case PullDown, PullUp:
+		mem[pullReg] = mem[pullReg]&^3 | uint32(pull)
+	case PullOff:
+		mem[pullReg] = mem[pullReg] &^ 3
+	}
+
+	// Wait for value to clock in, this is ugly, sorry :(
+	time.Sleep(time.Microsecond)
+
+	mem[pullClkReg] = 1 << shift
+
+	// Wait for value to clock in
+	time.Sleep(time.Microsecond)
+
+	mem[pullReg] = mem[pullReg] &^ 3
+	mem[pullClkReg] = 0
+
+	memlock.Unlock()
+
 }
 
 // Open and memory map GPIO memory range from /dev/mem .
