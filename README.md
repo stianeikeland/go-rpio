@@ -1,7 +1,65 @@
 go-rpio
 =======
 
-Raspberry Pi GPIO library for go-lang with limited functionality
-Native, no c libraries needed.
+Native GPIO-Gophers for your Pi! 
 
-Work in progress
+go-rpio is a Go library for accessing [GPIO](http://elinux.org/Rpi_Low-level_peripherals)-pins 
+on the [Raspberry Pi](https://en.wikipedia.org/wiki/Raspberry_Pi).
+
+It requires no external c libraries such as
+[WiringPI](https://projects.drogon.net/raspberry-pi/wiringpi/) or [bcm2835](http://www.open.com.au/mikem/bcm2835).
+
+## Usage ##
+
+```go
+import "github.com/stianeikeland/go-rpio"
+```
+
+Open memory range for GPIO access in /dev/mem
+
+```go
+err := rpio.Open()
+```
+
+Initialize a pin, run basic operations.
+Pin refers to the bcm2835 pin, not the physical pin on the raspberry pi header. Pin 10 here is exposed on the pin header as physical pin 19. 
+
+```go
+pin := rpio.Pin(10)
+
+pin.Output()       // Output mode
+pin.High()         // Set pin High
+pin.Low()          // Set pin Low
+pin.Toggle()       // Toggle pin (Low -> High -> Low)
+
+pin.Input()        // Input mode
+res := pin.Read()  // Read state from pin (High / Low)
+
+pin.Mode(rpio.Output)   // Alternative syntax
+pin.Write(rpio.High)    // Alternative syntax
+```
+
+Unmap memory when done
+
+```go
+rpio.Close()
+```
+
+Also see example [examples/blinker/blinker.go](examples/blinker/blinker.go)
+
+## Other ##
+
+Currently, it supports basic functionality such as:
+- Pin Direction (Input / Output)
+- Write (High / Low)
+- Read (High / Low)
+
+Would be nice to add in the future:
+- PWM
+- PullUp
+- PullDown
+- I2C
+- SPI
+- etc...
+
+It works by memory-mapping the bcm2835 gpio range, and therefor require root/administrative-rights to run.
