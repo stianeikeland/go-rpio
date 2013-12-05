@@ -11,6 +11,8 @@ It requires no external c libraries such as
 
 There's a tiny bit of additional information over at my [blog](http://blagg.tadkom.net/2013/07/30/go-gpio-library-for-raspberry-pi/).
 
+![raspberrypi-blink](http://stianeikeland.files.wordpress.com/2013/07/animated.gif)
+
 ## Usage ##
 
 ```go
