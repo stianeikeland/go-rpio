@@ -164,7 +164,7 @@ func (pin Pin) PullOff() {
 	PullMode(pin, PullOff)
 }
 
-// WritePin sets the direction of a given pin (Input or Output)
+// PinMode sets the direction of a given pin (Input or Output)
 func PinMode(pin Pin, direction Direction) {
 
 	// Pin fsel register, 0 or 1 depending on bank
@@ -204,7 +204,7 @@ func WritePin(pin Pin, state State) {
 	memlock.Unlock()
 }
 
-// Read the state of a
+// Read the state of a pin
 func ReadPin(pin Pin) State {
 	// Input level register offset (13 / 14 depending on bank)
 	levelReg := uint8(pin)/32 + 13
