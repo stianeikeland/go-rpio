@@ -75,4 +75,4 @@ Would be nice to add in the future:
 - SPI
 - etc...
 
-It works by memory-mapping the bcm2835 gpio range, and therefor require root/administrative-rights to run.
+It works by memory-mapping the bcm2835 gpio range, and therefore require root/administrative-rights to run.
