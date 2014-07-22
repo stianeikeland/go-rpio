@@ -304,5 +304,6 @@ func Open() (err error) {
 func Close() {
 	memlock.Lock()
 	syscall.Munmap(mem8)
+	syscall.Munmap(mem)
 	memlock.Unlock()
 }
