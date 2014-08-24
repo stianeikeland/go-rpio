@@ -172,6 +172,7 @@ func PinMode(pin Pin, direction Direction) {
 	shift := (uint8(pin) % 10) * 3
 
 	memlock.Lock()
+	defer memlock.Unlock()
 
 	if direction == Input {
 		mem[fsel] = mem[fsel] &^ (pinMask << shift)
@@ -179,7 +180,6 @@ func PinMode(pin Pin, direction Direction) {
 		mem[fsel] = (mem[fsel] &^ (pinMask << shift)) | (1 << shift)
 	}
 
-	memlock.Unlock()
 }
 
 // WritePin sets a given pin High or Low
@@ -194,6 +194,7 @@ func WritePin(pin Pin, state State) {
 	setReg := p/32 + 7
 
 	memlock.Lock()
+	defer memlock.Unlock()
 
 	if state == Low {
 		mem[clearReg] = 1 << (p & 31)
@@ -201,7 +202,6 @@ func WritePin(pin Pin, state State) {
 		mem[setReg] = 1 << (p & 31)
 	}
 
-	memlock.Unlock()
 }
 
 // Read the state of a pin
@@ -234,6 +234,7 @@ func PullMode(pin Pin, pull Pull) {
 	shift := (uint8(pin) % 32)
 
 	memlock.Lock()
+	defer memlock.Unlock()
 
 	switch pull {
 	case PullDown, PullUp:
@@ -252,8 +253,6 @@ func PullMode(pin Pin, pull Pull) {
 
 	mem[pullReg] = mem[pullReg] &^ 3
 	mem[pullClkReg] = 0
-
-	memlock.Unlock()
 
 }
 
@@ -276,6 +275,7 @@ func Open() (err error) {
 	defer file.Close()
 
 	memlock.Lock()
+	defer memlock.Unlock()
 
 	// Memory map GPIO registers to byte array
 	mem8, err = syscall.Mmap(
@@ -296,13 +296,12 @@ func Open() (err error) {
 
 	mem = *(*[]uint32)(unsafe.Pointer(&header))
 
-	memlock.Unlock()
 	return nil
 }
 
 // Close unmaps GPIO memory
-func Close() {
+func Close() error {
 	memlock.Lock()
-	syscall.Munmap(mem8)
-	memlock.Unlock()
+	defer memlock.Unlock()
+	return syscall.Munmap(mem8)
 }
