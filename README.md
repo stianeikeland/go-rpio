@@ -9,7 +9,7 @@ on the [Raspberry Pi](https://en.wikipedia.org/wiki/Raspberry_Pi).
 It requires no external c libraries such as
 [WiringPI](https://projects.drogon.net/raspberry-pi/wiringpi/) or [bcm2835](http://www.open.com.au/mikem/bcm2835).
 
-There's a tiny bit of additional information over at my [blog](http://blagg.tadkom.net/2013/07/30/go-gpio-library-for-raspberry-pi/).
+There's a tiny bit of additional information over at my [blog](https://blog.eikeland.se/2013/07/30/go-gpio-library-for-raspberry-pi/).
 
 ![raspberrypi-blink](http://stianeikeland.files.wordpress.com/2013/07/animated.gif)
 
