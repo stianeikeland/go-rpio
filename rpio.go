@@ -309,8 +309,8 @@ func Close() error {
 	return syscall.Munmap(mem8)
 }
 
-// Read /proc/cpuinfo and detect whether we're running on an RPI1 or RPI2.
-// Returns 1 or 2 depending on platform.
+// Read /proc/device-tree/soc/ranges and determine the base address.
+// Use the default Raspberry Pi 1 base address if this fails.
 func getGPIOBase() (base int64) {
 	base = pi1GPIOBase
 	ranges, err := os.Open("/proc/device-tree/soc/ranges")
