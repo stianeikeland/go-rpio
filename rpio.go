@@ -56,6 +56,8 @@ http://www.raspberrypi.org/wp-content/uploads/2012/02/BCM2835-ARM-Peripherals.pd
 package rpio
 
 import (
+	"bytes"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"sync"
@@ -72,8 +74,11 @@ type Pull uint8
 // Memory offsets for gpio, see the spec for more details
 const (
 	bcm2835Base = 0x20000000
-	gpioBase    = bcm2835Base + 0x200000
+	pi1GPIOBase = bcm2835Base + 0x200000
 	memLength   = 4096
+
+	bcm2836Base = 0x3f000000
+	pi2GPIOBase = bcm2836Base + 0x200000
 
 	pinMask uint32 = 7 // 0b111 - pinmode is 3 bits
 )
@@ -277,10 +282,15 @@ func Open() (err error) {
 	memlock.Lock()
 	defer memlock.Unlock()
 
+	GPIOBase := int64(pi1GPIOBase)
+	if detectPiVersion() == 2 {
+		GPIOBase = pi2GPIOBase
+	}
+
 	// Memory map GPIO registers to byte array
 	mem8, err = syscall.Mmap(
 		int(file.Fd()),
-		gpioBase,
+		GPIOBase,
 		memLength,
 		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_SHARED)
@@ -304,4 +314,22 @@ func Close() error {
 	memlock.Lock()
 	defer memlock.Unlock()
 	return syscall.Munmap(mem8)
+}
+
+// Read /proc/cpuinfo and detect whether we're running on an RPI1 or RPI2.
+// Returns 1 or 2 depending on platform.
+func detectPiVersion() int {
+	cpuinfo, err := os.Open("/proc/cpuinfo")
+	if err != nil {
+		panic(err)
+	}
+	data, err := ioutil.ReadAll(cpuinfo)
+	if err != nil {
+		panic(err)
+	}
+	if bytes.Contains(data, []byte("BCM2709")) {
+		return 2
+	} else {
+		return 1
+	}
 }
