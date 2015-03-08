@@ -58,6 +58,7 @@ package rpio
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"reflect"
 	"sync"
@@ -323,10 +324,11 @@ func getGPIOBase() (base int64) {
 		return
 	}
 	buf := bytes.NewReader(b)
-	var out int64
-	err = binary.Read(buf, binary.LittleEndian, &out)
+	var out uint32
+	err = binary.Read(buf, binary.BigEndian, &out)
 	if err != nil {
 		return
 	}
-	return out + 0x200000
+	fmt.Printf("%X", out)
+	return int64(out + 0x200000)
 }
