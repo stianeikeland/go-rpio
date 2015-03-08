@@ -58,7 +58,6 @@ package rpio
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"os"
 	"reflect"
 	"sync"
@@ -329,6 +328,5 @@ func getGPIOBase() (base int64) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("%X", out)
 	return int64(out + 0x200000)
 }
