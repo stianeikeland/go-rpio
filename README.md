@@ -13,6 +13,10 @@ There's a tiny bit of additional information over at my [blog](https://blog.eike
 
 ![raspberrypi-blink](http://stianeikeland.files.wordpress.com/2013/07/animated.gif)
 
+## Releases ##
+- 1.0.0 - Supports original rpi A/B/B+
+- 2.0.0 - Adds support for rpi 2, by @akramer
+
 ## Usage ##
 
 ```go
