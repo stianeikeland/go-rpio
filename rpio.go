@@ -57,7 +57,7 @@ package rpio
 
 import (
 	"bytes"
-	"io/ioutil"
+	"encoding/binary"
 	"os"
 	"reflect"
 	"sync"
@@ -76,9 +76,6 @@ const (
 	bcm2835Base = 0x20000000
 	pi1GPIOBase = bcm2835Base + 0x200000
 	memLength   = 4096
-
-	bcm2836Base = 0x3f000000
-	pi2GPIOBase = bcm2836Base + 0x200000
 
 	pinMask uint32 = 7 // 0b111 - pinmode is 3 bits
 )
@@ -282,15 +279,10 @@ func Open() (err error) {
 	memlock.Lock()
 	defer memlock.Unlock()
 
-	GPIOBase := int64(pi1GPIOBase)
-	if detectPiVersion() == 2 {
-		GPIOBase = pi2GPIOBase
-	}
-
 	// Memory map GPIO registers to byte array
 	mem8, err = syscall.Mmap(
 		int(file.Fd()),
-		GPIOBase,
+		getGPIOBase(),
 		memLength,
 		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_SHARED)
@@ -318,18 +310,23 @@ func Close() error {
 
 // Read /proc/cpuinfo and detect whether we're running on an RPI1 or RPI2.
 // Returns 1 or 2 depending on platform.
-func detectPiVersion() int {
-	cpuinfo, err := os.Open("/proc/cpuinfo")
+func getGPIOBase() (base int64) {
+	base = pi1GPIOBase
+	ranges, err := os.Open("/proc/device-tree/soc/ranges")
+	defer ranges.Close()
 	if err != nil {
-		panic(err)
+		return
 	}
-	data, err := ioutil.ReadAll(cpuinfo)
+	b := make([]byte, 4)
+	n, err := ranges.ReadAt(b, 4)
+	if n != 4 || err != nil {
+		return
+	}
+	buf := bytes.NewReader(b)
+	var out int64
+	err = binary.Read(buf, binary.LittleEndian, &out)
 	if err != nil {
-		panic(err)
+		return
 	}
-	if bytes.Contains(data, []byte("BCM2709")) {
-		return 2
-	} else {
-		return 1
-	}
+	return out + 0x200000
 }
