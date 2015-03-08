@@ -56,6 +56,8 @@ http://www.raspberrypi.org/wp-content/uploads/2012/02/BCM2835-ARM-Peripherals.pd
 package rpio
 
 import (
+	"bytes"
+	"encoding/binary"
 	"os"
 	"reflect"
 	"sync"
@@ -72,7 +74,7 @@ type Pull uint8
 // Memory offsets for gpio, see the spec for more details
 const (
 	bcm2835Base = 0x20000000
-	gpioBase    = bcm2835Base + 0x200000
+	pi1GPIOBase = bcm2835Base + 0x200000
 	memLength   = 4096
 
 	pinMask uint32 = 7 // 0b111 - pinmode is 3 bits
@@ -280,7 +282,7 @@ func Open() (err error) {
 	// Memory map GPIO registers to byte array
 	mem8, err = syscall.Mmap(
 		int(file.Fd()),
-		gpioBase,
+		getGPIOBase(),
 		memLength,
 		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_SHARED)
@@ -304,4 +306,27 @@ func Close() error {
 	memlock.Lock()
 	defer memlock.Unlock()
 	return syscall.Munmap(mem8)
+}
+
+// Read /proc/device-tree/soc/ranges and determine the base address.
+// Use the default Raspberry Pi 1 base address if this fails.
+func getGPIOBase() (base int64) {
+	base = pi1GPIOBase
+	ranges, err := os.Open("/proc/device-tree/soc/ranges")
+	defer ranges.Close()
+	if err != nil {
+		return
+	}
+	b := make([]byte, 4)
+	n, err := ranges.ReadAt(b, 4)
+	if n != 4 || err != nil {
+		return
+	}
+	buf := bytes.NewReader(b)
+	var out uint32
+	err = binary.Read(buf, binary.BigEndian, &out)
+	if err != nil {
+		return
+	}
+	return int64(out + 0x200000)
 }
