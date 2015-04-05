@@ -48,7 +48,7 @@ func main() {
 			pin := rpio.Pin(*pinNumber)
 			pin.Input() // Input mode
 			res := pin.Read()
-
+			fmt.Printf("Raspberry PI GPIO status for pin #%d - %d\n", *pinNumber, pin.Read())
 			if *high {
 				if res == rpio.High {
 					os.Exit(0)
@@ -62,7 +62,6 @@ func main() {
 					os.Exit(1)
 				}
 			}
-			fmt.Printf("Raspberry PI GPIO status for pin #%d - %d\n", *pinNumber, pin.Read())
 		} else {
 			switch *set {
 			case 1:
