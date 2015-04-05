@@ -55,16 +55,14 @@ func main() {
 				} else {
 					os.Exit(1)
 				}
-			}
-
-			if *low {
+			} else {
 				if res == rpio.Low {
 					os.Exit(0)
 				} else {
 					os.Exit(1)
 				}
 			}
-			os.Exit(1)
+			fmt.Printf("Raspberry PI GPIO status for pin #%d - %d\n", *pinNumber, pin.Read())
 		} else {
 			switch *set {
 			case 1:
