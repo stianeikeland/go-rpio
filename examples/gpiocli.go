@@ -16,7 +16,7 @@ func main() {
 	flag.Parse()
 
 	if os.Geteuid() != 0 {
-		fmt.Println("This program have to be run as root, or  SUID/GUID set to  0 on execution!")
+		fmt.Println("This program have to be run as root, or SUID/GUID set to 0 on execution!")
 		os.Exit(1)
 	}
 
@@ -39,17 +39,17 @@ func main() {
 	// Unmap gpio memory when done
 	defer rpio.Close()
 
-	if pin == 0 {
+	if *pin == 0 {
 		fmt.Println("Set the pin number to use!")
 		os.Exit(1)
 	} else {
-		if high || low {
+		if *high || *low {
 			//we get the value for pin
-			pin := rpio.Pin(pin)
+			pin := rpio.Pin(*pin)
 			pin.Input() // Input mode
 			res := pin.Read()
 
-			if high {
+			if *high {
 				if res == rpio.High {
 					os.Exit(0)
 				} else {
@@ -57,7 +57,7 @@ func main() {
 				}
 			}
 
-			if low {
+			if *low {
 				if res == rpio.Low {
 					os.Exit(0)
 				} else {
@@ -66,16 +66,16 @@ func main() {
 			}
 			os.Exit(1)
 		} else {
-			switch set {
+			switch *set {
 			case 1:
-				pin := rpio.Pin(pin)
+				pin := rpio.Pin(*pin)
 				pin.Output() // Output mode
 				pin.High()
 				os.Exit(0)
 				break
 			case -1:
 				//we set the value for pin
-				pin := rpio.Pin(pin)
+				pin := rpio.Pin(*pin)
 				pin.Output() // Output mode
 				pin.Low()
 				os.Exit(0)
