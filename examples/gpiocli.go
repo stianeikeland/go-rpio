@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	var pin = flag.Int("p", 0, " number of pin to use")
+	var pinNumber = flag.Int("p", 0, " number of pin to use")
 	var high = flag.Bool("h", false, " return 0 if value is HIGH, omit to set value")
 	var low = flag.Bool("l", false, " return 0 if value is LOW, omit to set value")
 	var set = flag.Int("s", 0, " set pin value to high(1) or low(-1)")
@@ -39,13 +39,13 @@ func main() {
 	// Unmap gpio memory when done
 	defer rpio.Close()
 
-	if *pin == 0 {
+	if *pinNumber == 0 {
 		fmt.Println("Set the pin number to use!")
 		os.Exit(1)
 	} else {
 		if *high || *low {
 			//we get the value for pin
-			pin := rpio.Pin(*pin)
+			pin := rpio.Pin(*pinNumber)
 			pin.Input() // Input mode
 			res := pin.Read()
 
@@ -68,14 +68,14 @@ func main() {
 		} else {
 			switch *set {
 			case 1:
-				pin := rpio.Pin(*pin)
+				pin := rpio.Pin(*pinNumber)
 				pin.Output() // Output mode
 				pin.High()
 				os.Exit(0)
 				break
 			case -1:
 				//we set the value for pin
-				pin := rpio.Pin(*pin)
+				pin := rpio.Pin(*pinNumber)
 				pin.Output() // Output mode
 				pin.Low()
 				os.Exit(0)
