@@ -262,12 +262,19 @@ func PullMode(pin Pin, pull Pull) {
 // Some reflection magic is used to convert it to a unsafe []uint32 pointer
 func Open() (err error) {
 	var file *os.File
+	var base int64
 
-	// Open fd for rw mem access
-	file, err = os.OpenFile(
-		"/dev/mem",
+	// Open fd for rw mem access; try gpiomem first
+	if file, err = os.OpenFile(
+		"/dev/gpiomem",
 		os.O_RDWR|os.O_SYNC,
-		0)
+		0); os.IsNotExist(err) {
+		file, err = os.OpenFile(
+			"/dev/mem",
+			os.O_RDWR|os.O_SYNC,
+			0)
+		base = getGPIOBase()
+	}
 
 	if err != nil {
 		return
@@ -282,7 +289,7 @@ func Open() (err error) {
 	// Memory map GPIO registers to byte array
 	mem8, err = syscall.Mmap(
 		int(file.Fd()),
-		getGPIOBase(),
+		base,
 		memLength,
 		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_SHARED)
