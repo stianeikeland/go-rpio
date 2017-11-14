@@ -131,10 +131,9 @@ func (pin Pin) Output() {
 	PinMode(pin, Output)
 }
 
-// Set pin as Clock with given freq
-func (pin Pin) Clock(freq int) {
+// Set pin as Clock
+func (pin Pin) Clock() {
 	PinMode(pin, Clock)
-	SetClock(pin, freq)
 }
 
 // Set pin High
@@ -150,6 +149,10 @@ func (pin Pin) Low() {
 // Toggle pin state
 func (pin Pin) Toggle() {
 	TogglePin(pin)
+}
+
+func (pin Pin) Freq(freq int) {
+	SetFreq(pin, freq)
 }
 
 // Set pin Mode
@@ -302,7 +305,7 @@ func PullMode(pin Pin, pull Pull) {
 // Note that some pins share the same clock source, it means that
 // changing frequency for one pin will change it also for all pins within a group
 // The groups are: clk0 (4, 20, 32, 34), clk1 (5, 21, 42, 43) and clk2 (6 and 43)
-func SetClock(pin Pin, freq int) {
+func SetFreq(pin Pin, freq int) {
 	const source = 19200000 // oscilator frequency
 	const maxUint12 = 4095
 
@@ -350,7 +353,7 @@ func SetClock(pin Pin, freq int) {
 func Open() (err error) {
 	var file *os.File
 
-	// Open fd for rw mem access; try mem gpio first
+	// Open fd for rw mem access; try gpiomem first
 	file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
 	if os.IsNotExist(err) { // try mem (need root)
 		file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
