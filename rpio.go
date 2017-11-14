@@ -4,7 +4,7 @@ Package rpio provides GPIO access on the Raspberry PI without any need
 for external c libraries (ex: WiringPI or BCM2835).
 
 Supports simple operations such as:
-- Pin mode/direction (input/output)
+- Pin mode/direction (input/output/clock)
 - Pin write (high/low)
 - Pin read (high/low)
 - Pull up/down/off
@@ -66,7 +66,7 @@ import (
 	"unsafe"
 )
 
-type Direction uint8
+type Mode uint8
 type Pin uint8
 type State uint8
 type Pull uint8
@@ -80,10 +80,11 @@ const (
 	pinMask uint32 = 7 // 0b111 - pinmode is 3 bits
 )
 
-// Pin direction, a pin can be set in Input or Output mode
+// Pin mode, a pin can be set in Input or Output mode, or clock
 const (
-	Input Direction = iota
+	Input Mode = iota
 	Output
+	Clock
 )
 
 // State of pin, High / Low
@@ -116,6 +117,12 @@ func (pin Pin) Output() {
 	PinMode(pin, Output)
 }
 
+
+// Set pin as Clock
+func (pin Pin) Clock() {
+	PinMode(pin, Clock)
+}
+
 // Set pin High
 func (pin Pin) High() {
 	WritePin(pin, High)
@@ -131,9 +138,9 @@ func (pin Pin) Toggle() {
 	TogglePin(pin)
 }
 
-// Set pin Direction
-func (pin Pin) Mode(dir Direction) {
-	PinMode(pin, dir)
+// Set pin Mode
+func (pin Pin) Mode(mode Mode) {
+	PinMode(pin, mode)
 }
 
 // Set pin state (high/low)
@@ -166,22 +173,34 @@ func (pin Pin) PullOff() {
 	PullMode(pin, PullOff)
 }
 
-// PinMode sets the direction of a given pin (Input or Output)
-func PinMode(pin Pin, direction Direction) {
+// PinMode sets the mode (direction) of a given pin (Input, Output or Clock)
+// Clock is possible only for some pins (bcm 4, 5, 6)
+func PinMode(pin Pin, mode Mode) {
 
 	// Pin fsel register, 0 or 1 depending on bank
 	fsel := uint8(pin) / 10
 	shift := (uint8(pin) % 10) * 3
+	f := uint32(0)
 
 	memlock.Lock()
 	defer memlock.Unlock()
 
-	if direction == Input {
-		mem[fsel] = mem[fsel] &^ (pinMask << shift)
-	} else {
-		mem[fsel] = (mem[fsel] &^ (pinMask << shift)) | (1 << shift)
+	switch mode {
+	case Input:
+		f = 0 // 000
+	case Output:
+		f = 1 // 001
+	case Clock:
+		switch pin {
+		case 4, 5, 6, 32, 34, 42, 43, 44:
+			f = 4 // 100 - alt0
+		case 20, 21:
+			f = 2 // 010 - alt5
+		default:
+			f = 1 // 001 - fallback to output
+		}
 	}
-
+	mem[fsel] = (mem[fsel] &^ (pinMask << shift)) | (f << shift)
 }
 
 // WritePin sets a given pin High or Low
