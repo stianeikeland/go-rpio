@@ -265,23 +265,18 @@ func Open() (err error) {
 	var base int64
 
 	// Open fd for rw mem access; try gpiomem first
-	if file, err = os.OpenFile(
-		"/dev/gpiomem",
-		os.O_RDWR|os.O_SYNC,
-		0); os.IsNotExist(err) {
-		file, err = os.OpenFile(
-			"/dev/mem",
-			os.O_RDWR|os.O_SYNC,
-			0)
-		base = getGPIOBase()
+	file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
+	if !os.IsNotExist(err) {
+		return
 	}
-
+	file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
 	if err != nil {
 		return
 	}
-
 	// FD can be closed after memory mapping
 	defer file.Close()
+
+	base = getGPIOBase()
 
 	memlock.Lock()
 	defer memlock.Unlock()
@@ -292,7 +287,8 @@ func Open() (err error) {
 		base,
 		memLength,
 		syscall.PROT_READ|syscall.PROT_WRITE,
-		syscall.MAP_SHARED)
+		syscall.MAP_SHARED,
+	)
 
 	if err != nil {
 		return
