@@ -194,7 +194,7 @@ func (pin Pin) PullOff() {
 func PinMode(pin Pin, mode Mode) {
 
 	// Pin fsel register, 0 or 1 depending on bank
-	fsel := uint8(pin) / 10
+	fselReg := uint8(pin) / 10
 	shift := (uint8(pin) % 10) * 3
 	f := uint32(0)
 
@@ -216,7 +216,7 @@ func PinMode(pin Pin, mode Mode) {
 			return
 		}
 	}
-	gpioMem[fsel] = (gpioMem[fsel] &^ (pinMask << shift)) | (f << shift)
+	gpioMem[fselReg] = (gpioMem[fselReg] &^ (pinMask << shift)) | (f << shift)
 }
 
 // WritePin sets a given pin High or Low
@@ -296,11 +296,11 @@ func PullMode(pin Pin, pull Pull) {
 
 // Set clock speed for given pin
 //
-// freq should be in range 4688 - 19.2MHz to prevent unexpected behavior
+// freq should be in range 4688Hz - 19.2MHz to prevent unexpected behavior
 // (for smaller frequencies implement custom software clock using output pin and sleep)
 //
-// Note that some pins share the same clock source that means
-// that changing frequency for one pin will change it also for all pins within a group
+// Note that some pins share the same clock source, it means that
+// changing frequency for one pin will change it also for all pins within a group
 // The groups are: clk0 (4, 20, 32, 34), clk1 (5, 21, 42, 43) and clk2 (6 and 43)
 func SetClock(pin Pin, freq int) {
 	const source = 19200000 // oscilator frequency
@@ -312,18 +312,18 @@ func SetClock(pin Pin, freq int) {
 	divi &= maxUint12
 	divf &= maxUint12
 
-	clkCtl := 0x70
-	clkDiv := 0x74
+	clkCtlReg := 0x70
+	clkDivReg := 0x74
 	switch pin {
 		case 4, 20, 32, 34: // clk0
-			clkCtl += 0
-			clkDiv += 0
+			clkCtlReg += 0
+			clkDivReg += 0
 		case 5, 21, 42, 44: // clk1
-			clkCtl += 8
-			clkDiv += 8
+			clkCtlReg += 8
+			clkDivReg += 8
 		case 6, 43: // clk2
-			clkCtl += 16
-			clkDiv += 16
+			clkCtlReg += 16
+			clkDivReg += 16
 		default:
 			return
 	}
@@ -336,11 +336,11 @@ func SetClock(pin Pin, freq int) {
 	const enab = 0x10
 	const src = 0x01 // oscilator
 
-	clkMem[clkCtl] = PASSWORD | src // stop gpio clock
-	for clkMem[clkCtl] & busy != 0 {} // ... and wait
+	clkMem[clkCtlReg] = PASSWORD | src // stop gpio clock
+	for clkMem[clkCtlReg] & busy != 0 {} // ... and wait
 
-	clkMem[clkDiv] = PASSWORD | (divi << 12) | divf // Set dividers
-	clkMem[clkCtl] = PASSWORD | enab | src // Start Clock
+	clkMem[clkDivReg] = PASSWORD | (divi << 12) | divf // set dividers
+	clkMem[clkCtlReg] = PASSWORD | enab | src // start clock
 
 }
 
@@ -364,13 +364,13 @@ func Open() (err error) {
 	defer memlock.Unlock()
 
 	// Memory map GPIO registers to slice
-	gpioMem, gpioMem8, err = memMap(file.Fd(), base + gpioOffset)
+	gpioMem, gpioMem8, err = memMap(file.Fd(), gpioBase)
 	if err != nil {
 		return
 	}
 
 	// Memory map clock reisters to slice
-	clkMem, clkMem8, err = memMap(file.Fd(), base + clkOffset)
+	clkMem, clkMem8, err = memMap(file.Fd(), clkBase)
 	if err != nil {
 		return
 	}
