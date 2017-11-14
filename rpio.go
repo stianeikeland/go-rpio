@@ -78,8 +78,6 @@ const (
 	clkOffset = 0x101000
 
 	memLength = 4096
-
-	pinMask uint32 = 7 // 0b111 - pinmode is 3 bits
 )
 
 var (
@@ -198,9 +196,6 @@ func PinMode(pin Pin, mode Mode) {
 	shift := (uint8(pin) % 10) * 3
 	f := uint32(0)
 
-	memlock.Lock()
-	defer memlock.Unlock()
-
 	switch mode {
 	case Input:
 		f = 0 // 000
@@ -216,6 +211,12 @@ func PinMode(pin Pin, mode Mode) {
 			return
 		}
 	}
+
+	memlock.Lock()
+	defer memlock.Unlock()
+
+	const pinMask = 7 // 0b111 - pinmode is 3 bits
+
 	gpioMem[fselReg] = (gpioMem[fselReg] &^ (pinMask << shift)) | (f << shift)
 }
 
@@ -246,7 +247,7 @@ func ReadPin(pin Pin) State {
 	// Input level register offset (13 / 14 depending on bank)
 	levelReg := uint8(pin)/32 + 13
 
-	if (gpioMem[levelReg] & (1 << uint8(pin))) != 0 {
+	if (gpioMem[levelReg] & (1 << uint8(pin & 31))) != 0 {
 		return High
 	}
 
@@ -401,8 +402,12 @@ func memMap (fd uintptr, offset int64) (mem []uint32, mem8 []byte, err error) {
 func Close() error {
 	memlock.Lock()
 	defer memlock.Unlock()
-	syscall.Munmap(gpioMem8)
-	syscall.Munmap(clkMem8)
+	if err := syscall.Munmap(gpioMem8) {
+		return err
+	}
+	if err := syscall.Munmap(clkMem8) {
+		return err
+	}
 	return nil
 }
 
