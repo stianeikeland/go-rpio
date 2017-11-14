@@ -74,19 +74,19 @@ type Pull uint8
 // Memory offsets for gpio, see the spec for more details
 const (
 	bcm2835Base = 0x20000000
-	gpioOffset = 0x200000
-	clkOffset = 0x101000
+	gpioOffset  = 0x200000
+	clkOffset   = 0x101000
 
 	memLength = 4096
 )
 
 var (
-	base int64
+	base     int64
 	gpioBase int64
-	clkBase int64
+	clkBase  int64
 )
 
-func init () {
+func init() {
 	base = getBase()
 	gpioBase = base + gpioOffset
 	clkBase = base + clkOffset
@@ -114,11 +114,11 @@ const (
 
 // Arrays for 8 / 32 bit access to memory and a semaphore for write locking
 var (
-	memlock sync.Mutex
-	gpioMem     []uint32
-	clkMem  []uint32
-	gpioMem8    []uint8
-	clkMem8 []uint8
+	memlock  sync.Mutex
+	gpioMem  []uint32
+	clkMem   []uint32
+	gpioMem8 []uint8
+	clkMem8  []uint8
 )
 
 // Set pin as Input
@@ -247,7 +247,7 @@ func ReadPin(pin Pin) State {
 	// Input level register offset (13 / 14 depending on bank)
 	levelReg := uint8(pin)/32 + 13
 
-	if (gpioMem[levelReg] & (1 << uint8(pin & 31))) != 0 {
+	if (gpioMem[levelReg] & (1 << uint8(pin&31))) != 0 {
 		return High
 	}
 
@@ -294,7 +294,6 @@ func PullMode(pin Pin, pull Pull) {
 
 }
 
-
 // Set clock speed for given pin
 //
 // freq should be in range 4688Hz - 19.2MHz to prevent unexpected behavior
@@ -316,17 +315,17 @@ func SetClock(pin Pin, freq int) {
 	clkCtlReg := 0x70
 	clkDivReg := 0x74
 	switch pin {
-		case 4, 20, 32, 34: // clk0
-			clkCtlReg += 0
-			clkDivReg += 0
-		case 5, 21, 42, 44: // clk1
-			clkCtlReg += 8
-			clkDivReg += 8
-		case 6, 43: // clk2
-			clkCtlReg += 16
-			clkDivReg += 16
-		default:
-			return
+	case 4, 20, 32, 34: // clk0
+		clkCtlReg += 0
+		clkDivReg += 0
+	case 5, 21, 42, 44: // clk1
+		clkCtlReg += 8
+		clkDivReg += 8
+	case 6, 43: // clk2
+		clkCtlReg += 16
+		clkDivReg += 16
+	default:
+		return
 	}
 
 	memlock.Lock()
@@ -338,10 +337,11 @@ func SetClock(pin Pin, freq int) {
 	const src = 0x01 // oscilator
 
 	clkMem[clkCtlReg] = PASSWORD | src // stop gpio clock
-	for clkMem[clkCtlReg] & busy != 0 {} // ... and wait
+	for clkMem[clkCtlReg]&busy != 0 {
+	} // ... and wait
 
 	clkMem[clkDivReg] = PASSWORD | (divi << 12) | divf // set dividers
-	clkMem[clkCtlReg] = PASSWORD | enab | src // start clock
+	clkMem[clkCtlReg] = PASSWORD | enab | src          // start clock
 
 }
 
@@ -379,10 +379,10 @@ func Open() (err error) {
 	return nil
 }
 
-func memMap (fd uintptr, offset int64) (mem []uint32, mem8 []byte, err error) {
+func memMap(fd uintptr, offset int64) (mem []uint32, mem8 []byte, err error) {
 	mem8, err = syscall.Mmap(
 		int(fd),
-		base + clkOffset,
+		base+clkOffset,
 		memLength,
 		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_SHARED,
@@ -402,10 +402,10 @@ func memMap (fd uintptr, offset int64) (mem []uint32, mem8 []byte, err error) {
 func Close() error {
 	memlock.Lock()
 	defer memlock.Unlock()
-	if err := syscall.Munmap(gpioMem8) {
+	if err := syscall.Munmap(gpioMem8); err != nil {
 		return err
 	}
-	if err := syscall.Munmap(clkMem8) {
+	if err := syscall.Munmap(clkMem8); err != nil {
 		return err
 	}
 	return nil
