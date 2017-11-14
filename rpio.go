@@ -74,11 +74,25 @@ type Pull uint8
 // Memory offsets for gpio, see the spec for more details
 const (
 	bcm2835Base = 0x20000000
-	pi1GPIOBase = bcm2835Base + 0x200000
-	memLength   = 4096
+	gpioOffset = 0x200000
+	clkOffset = 0x101000
+
+	memLength = 4096
 
 	pinMask uint32 = 7 // 0b111 - pinmode is 3 bits
 )
+
+var (
+	base int64
+	gpioBase int64
+	clkBase int64
+)
+
+func init () {
+	base = getBase()
+	gpioBase = base + gpioOffset
+	clkBase = base + clkOffset
+}
 
 // Pin mode, a pin can be set in Input or Output mode, or clock
 const (
@@ -103,8 +117,10 @@ const (
 // Arrays for 8 / 32 bit access to memory and a semaphore for write locking
 var (
 	memlock sync.Mutex
-	mem     []uint32
-	mem8    []uint8
+	gpioMem     []uint32
+	clkMem  []uint32
+	gpioMem8    []uint8
+	clkMem8 []uint8
 )
 
 // Set pin as Input
@@ -117,10 +133,10 @@ func (pin Pin) Output() {
 	PinMode(pin, Output)
 }
 
-
-// Set pin as Clock
-func (pin Pin) Clock() {
+// Set pin as Clock with given freq
+func (pin Pin) Clock(freq int) {
 	PinMode(pin, Clock)
+	SetClock(pin, freq)
 }
 
 // Set pin High
@@ -197,10 +213,10 @@ func PinMode(pin Pin, mode Mode) {
 		case 20, 21:
 			f = 2 // 010 - alt5
 		default:
-			f = 1 // 001 - fallback to output
+			return
 		}
 	}
-	mem[fsel] = (mem[fsel] &^ (pinMask << shift)) | (f << shift)
+	gpioMem[fsel] = (gpioMem[fsel] &^ (pinMask << shift)) | (f << shift)
 }
 
 // WritePin sets a given pin High or Low
@@ -218,9 +234,9 @@ func WritePin(pin Pin, state State) {
 	defer memlock.Unlock()
 
 	if state == Low {
-		mem[clearReg] = 1 << (p & 31)
+		gpioMem[clearReg] = 1 << (p & 31)
 	} else {
-		mem[setReg] = 1 << (p & 31)
+		gpioMem[setReg] = 1 << (p & 31)
 	}
 
 }
@@ -230,7 +246,7 @@ func ReadPin(pin Pin) State {
 	// Input level register offset (13 / 14 depending on bank)
 	levelReg := uint8(pin)/32 + 13
 
-	if (mem[levelReg] & (1 << uint8(pin))) != 0 {
+	if (gpioMem[levelReg] & (1 << uint8(pin))) != 0 {
 		return High
 	}
 
@@ -259,21 +275,72 @@ func PullMode(pin Pin, pull Pull) {
 
 	switch pull {
 	case PullDown, PullUp:
-		mem[pullReg] = mem[pullReg]&^3 | uint32(pull)
+		gpioMem[pullReg] = gpioMem[pullReg]&^3 | uint32(pull)
 	case PullOff:
-		mem[pullReg] = mem[pullReg] &^ 3
+		gpioMem[pullReg] = gpioMem[pullReg] &^ 3
 	}
 
 	// Wait for value to clock in, this is ugly, sorry :(
 	time.Sleep(time.Microsecond)
 
-	mem[pullClkReg] = 1 << shift
+	gpioMem[pullClkReg] = 1 << shift
 
 	// Wait for value to clock in
 	time.Sleep(time.Microsecond)
 
-	mem[pullReg] = mem[pullReg] &^ 3
-	mem[pullClkReg] = 0
+	gpioMem[pullReg] = gpioMem[pullReg] &^ 3
+	gpioMem[pullClkReg] = 0
+
+}
+
+
+// Set clock speed for given pin
+//
+// freq should be in range 4688 - 19.2MHz to prevent unexpected behavior
+// (for smaller frequencies implement custom software clock using output pin and sleep)
+//
+// Note that some pins share the same clock source that means
+// that changing frequency for one pin will change it also for all pins within a group
+// The groups are: clk0 (4, 20, 32, 34), clk1 (5, 21, 42, 43) and clk2 (6 and 43)
+func SetClock(pin Pin, freq int) {
+	const source = 19200000 // oscilator frequency
+	const maxUint12 = 4095
+
+	divi := uint32(source / freq)
+	divf := uint32(((source % freq) << 12) / source)
+
+	divi &= maxUint12
+	divf &= maxUint12
+
+	clkCtl := 0x70
+	clkDiv := 0x74
+	switch pin {
+		case 4, 20, 32, 34: // clk0
+			clkCtl += 0
+			clkDiv += 0
+		case 5, 21, 42, 44: // clk1
+			clkCtl += 8
+			clkDiv += 8
+		case 6, 43: // clk2
+			clkCtl += 16
+			clkDiv += 16
+		default:
+			return
+	}
+
+	memlock.Lock()
+	defer memlock.Unlock()
+
+	const PASSWORD = 0x5A000000
+	const busy = 0x80
+	const enab = 0x10
+	const src = 0x01 // oscilator
+
+	clkMem[clkCtl] = PASSWORD | src // stop gpio clock
+	for clkMem[clkCtl] & busy != 0 {} // ... and wait
+
+	clkMem[clkDiv] = PASSWORD | (divi << 12) | divf // Set dividers
+	clkMem[clkCtl] = PASSWORD | enab | src // Start Clock
 
 }
 
@@ -281,59 +348,68 @@ func PullMode(pin Pin, pull Pull) {
 // Some reflection magic is used to convert it to a unsafe []uint32 pointer
 func Open() (err error) {
 	var file *os.File
-	var base int64
 
-	// Open fd for rw mem access; try gpiomem first
+	// Open fd for rw mem access; try mem gpio first
 	file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
-	if !os.IsNotExist(err) {
-		return
+	if os.IsNotExist(err) { // try mem (need root)
+		file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
 	}
-	file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
 	if err != nil {
 		return
 	}
 	// FD can be closed after memory mapping
 	defer file.Close()
 
-	base = getGPIOBase()
-
 	memlock.Lock()
 	defer memlock.Unlock()
 
-	// Memory map GPIO registers to byte array
-	mem8, err = syscall.Mmap(
-		int(file.Fd()),
-		base,
-		memLength,
-		syscall.PROT_READ|syscall.PROT_WRITE,
-		syscall.MAP_SHARED,
-	)
-
+	// Memory map GPIO registers to slice
+	gpioMem, gpioMem8, err = memMap(file.Fd(), base + gpioOffset)
 	if err != nil {
 		return
 	}
 
+	// Memory map clock reisters to slice
+	clkMem, clkMem8, err = memMap(file.Fd(), base + clkOffset)
+	if err != nil {
+		return
+	}
+
+	return nil
+}
+
+func memMap (fd uintptr, offset int64) (mem []uint32, mem8 []byte, err error) {
+	mem8, err = syscall.Mmap(
+		int(fd),
+		base + clkOffset,
+		memLength,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED,
+	)
+	if err != nil {
+		return
+	}
 	// Convert mapped byte memory to unsafe []uint32 pointer, adjust length as needed
 	header := *(*reflect.SliceHeader)(unsafe.Pointer(&mem8))
 	header.Len /= (32 / 8) // (32 bit = 4 bytes)
 	header.Cap /= (32 / 8)
-
 	mem = *(*[]uint32)(unsafe.Pointer(&header))
-
-	return nil
+	return
 }
 
 // Close unmaps GPIO memory
 func Close() error {
 	memlock.Lock()
 	defer memlock.Unlock()
-	return syscall.Munmap(mem8)
+	syscall.Munmap(gpioMem8)
+	syscall.Munmap(clkMem8)
+	return nil
 }
 
 // Read /proc/device-tree/soc/ranges and determine the base address.
 // Use the default Raspberry Pi 1 base address if this fails.
-func getGPIOBase() (base int64) {
-	base = pi1GPIOBase
+func getBase() (base int64) {
+	base = bcm2835Base
 	ranges, err := os.Open("/proc/device-tree/soc/ranges")
 	defer ranges.Close()
 	if err != nil {
@@ -350,5 +426,5 @@ func getGPIOBase() (base int64) {
 	if err != nil {
 		return
 	}
-	return int64(out + 0x200000)
+	return int64(out)
 }
