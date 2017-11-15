@@ -191,7 +191,8 @@ func (pin Pin) PullOff() {
 }
 
 // PinMode sets the mode (direction) of a given pin (Input, Output or Clock)
-// Clock is possible only for some pins (bcm 4, 5, 6)
+//
+// Clock is possible only for some pins (bcm 4, 5, 6, 20, 21)
 func PinMode(pin Pin, mode Mode) {
 
 	// Pin fsel register, 0 or 1 depending on bank
@@ -310,7 +311,7 @@ func SetFreq(pin Pin, freq int) {
 	const maxUint12 = 4095
 
 	divi := uint32(source / freq)
-	divf := uint32(((source % freq) << 12) / source)
+	divf := uint32(((source % freq) << 12) / freq)
 
 	divi &= maxUint12
 	divf &= maxUint12
