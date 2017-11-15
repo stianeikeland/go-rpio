@@ -81,13 +81,12 @@ const (
 )
 
 var (
-	base     int64
 	gpioBase int64
 	clkBase  int64
 )
 
 func init() {
-	base = getBase()
+	base := getBase()
 	gpioBase = base + gpioOffset
 	clkBase = base + clkOffset
 }
@@ -383,10 +382,10 @@ func Open() (err error) {
 	return nil
 }
 
-func memMap(fd uintptr, offset int64) (mem []uint32, mem8 []byte, err error) {
+func memMap(fd uintptr, base int64) (mem []uint32, mem8 []byte, err error) {
 	mem8, err = syscall.Mmap(
 		int(fd),
-		base+clkOffset,
+		base,
 		memLength,
 		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_SHARED,
