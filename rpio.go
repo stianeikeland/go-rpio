@@ -345,7 +345,7 @@ func SetFreq(pin Pin, freq int) {
 	const enab = 1 << 4
 	const src = 1 << 0 // oscilator
 
-	clkMem[clkCtlReg] = PASSWORD | src // stop gpio clock
+	clkMem[clkCtlReg] = PASSWORD | (clkMem[clkCtlReg] &^ enab) // stop gpio clock (without changing src or mash)
 	for clkMem[clkCtlReg]&busy != 0 {
 		time.Sleep(time.Microsecond * 10)
 	} // ... and wait for not busy
