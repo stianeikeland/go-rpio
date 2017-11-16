@@ -358,9 +358,7 @@ func SetFreq(pin Pin, freq int) {
 
 	clkMem[clkCtlReg] = PASSWORD | mash | src | enab // finally start clock
 
-	for clkMem[clkCtlReg]&busy == 0 {
-		time.Sleep(time.Microsecond * 10)
-	} // ... and wait for busy, just to be sure
+	// NOTE without root permission this changes will simply do nothing successfully
 }
 
 // Open and memory map GPIO memory range from /dev/mem .
@@ -368,10 +366,10 @@ func SetFreq(pin Pin, freq int) {
 func Open() (err error) {
 	var file *os.File
 
-	// Open fd for rw mem access; try gpiomem first
-	file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
-	if os.IsNotExist(err) { // try mem (need root)
-		file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
+	// Open fd for rw mem access; try dev/mem first (need root)
+	file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
+	if os.IsPermission(err) { // try gpiomem otherwise (some extra functions like clock setting wont work)
+		file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
 	}
 	if err != nil {
 		return
