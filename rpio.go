@@ -311,7 +311,7 @@ func SetFreq(pin Pin, freq int) {
 	const maxUint12 = 4095
 
 	divi := uint32(sourceFreq / freq)
-	divf := uint32(((sourceFreq % freq) << 12) / sourceFreq)
+	divf := uint32(((sourceFreq % freq) << 12) / freq)
 
 	divi &= maxUint12
 	divf &= maxUint12
