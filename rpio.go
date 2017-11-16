@@ -306,11 +306,12 @@ func PullMode(pin Pin, pull Pull) {
 // changing frequency for one pin will change it also for all pins within a group
 // The groups are: clk0 (4, 20, 32, 34), clk1 (5, 21, 42, 43) and clk2 (6 and 43)
 func SetFreq(pin Pin, freq int) {
-	const source = 19200000 // oscilator frequency
+	// TODO: would be nice to choose best clock source depending on target frequency, oscilator is used for now
+	const sourceFreq = 19200000 // oscilator frequency
 	const maxUint12 = 4095
 
-	divi := uint32(source / freq)
-	divf := uint32(((source % freq) << 12) / freq)
+	divi := uint32(sourceFreq / freq)
+	divf := uint32(((sourceFreq % freq) << 12) / sourceFreq)
 
 	divi &= maxUint12
 	divf &= maxUint12
@@ -331,21 +332,35 @@ func SetFreq(pin Pin, freq int) {
 		return
 	}
 
+	mash := uint32(1 << 9) // 1-stage MASH
+	if divi < 2 || divf == 0 {
+		mash = 0
+	}
+
 	memlock.Lock()
 	defer memlock.Unlock()
 
 	const PASSWORD = 0x5A000000
-	const busy = 0x80
-	const enab = 0x10
-	const src = 0x01 // oscilator
+	const busy = 1 << 7
+	const enab = 1 << 4
+	const src = 1 << 0 // oscilator
 
 	clkMem[clkCtlReg] = PASSWORD | src // stop gpio clock
 	for clkMem[clkCtlReg]&busy != 0 {
-	} // ... and wait
+		time.Sleep(time.Microsecond * 10)
+	} // ... and wait for not busy
 
+	clkMem[clkCtlReg] = PASSWORD | mash | src          // set mash and source (without enabling clock)
 	clkMem[clkDivReg] = PASSWORD | (divi << 12) | divf // set dividers
-	clkMem[clkCtlReg] = PASSWORD | enab | src          // start clock
 
+	// mash and src can not be changed in same step as enab, to prevent lock-up and glitches
+	time.Sleep(time.Microsecond * 10) // ... so wait for them to take effect
+
+	clkMem[clkCtlReg] = PASSWORD | mash | src | enab // finally start clock
+
+	for clkMem[clkCtlReg]&busy == 0 {
+		time.Sleep(time.Microsecond * 10)
+	} // ... and wait for busy, just to be sure
 }
 
 // Open and memory map GPIO memory range from /dev/mem .
