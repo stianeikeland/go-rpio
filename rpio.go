@@ -315,18 +315,18 @@ func SetFreq(pin Pin, freq int) {
 	divi &= maxUint12
 	divf &= maxUint12
 
-	clkCtlReg := 0x70
-	clkDivReg := 0x74
+	clkCtlReg := 28
+	clkDivReg := 29
 	switch pin {
 	case 4, 20, 32, 34: // clk0
 		clkCtlReg += 0
 		clkDivReg += 0
 	case 5, 21, 42, 44: // clk1
-		clkCtlReg += 8
-		clkDivReg += 8
+		clkCtlReg += 2
+		clkDivReg += 2
 	case 6, 43: // clk2
-		clkCtlReg += 16
-		clkDivReg += 16
+		clkCtlReg += 4
+		clkDivReg += 4
 	default:
 		return
 	}
