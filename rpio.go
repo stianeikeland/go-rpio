@@ -76,6 +76,7 @@ const (
 	bcm2835Base = 0x20000000
 	gpioOffset  = 0x200000
 	clkOffset   = 0x101000
+	pwmOffset   = 0x20C000
 
 	memLength = 4096
 )
@@ -83,12 +84,14 @@ const (
 var (
 	gpioBase int64
 	clkBase  int64
+	pwmBase  int64
 )
 
 func init() {
 	base := getBase()
 	gpioBase = base + gpioOffset
 	clkBase = base + clkOffset
+	pwmBase = base + pwmOffset
 }
 
 // Pin mode, a pin can be set in Input or Output, Clock or Pwm mode
@@ -117,8 +120,10 @@ var (
 	memlock  sync.Mutex
 	gpioMem  []uint32
 	clkMem   []uint32
+	pwmMem   []uint32
 	gpioMem8 []uint8
 	clkMem8  []uint8
+	pwmMem8  []uint8
 )
 
 // Set pin as Input
@@ -388,7 +393,7 @@ func Open() (err error) {
 
 	// Open fd for rw mem access; try dev/mem first (need root)
 	file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
-	if os.IsPermission(err) { // try gpiomem otherwise (some extra functions like clock setting wont work)
+	if os.IsPermission(err) { // try gpiomem otherwise (some extra functions like clock and pwm setting wont work)
 		file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
 	}
 	if err != nil {
@@ -408,6 +413,11 @@ func Open() (err error) {
 
 	// Memory map clock reisters to slice
 	clkMem, clkMem8, err = memMap(file.Fd(), clkBase)
+	if err != nil {
+		return
+	}
+
+	pwmMem, pwmMem8, err = memMap(file.Fd(), clkBase)
 	if err != nil {
 		return
 	}
