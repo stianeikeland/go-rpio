@@ -91,11 +91,12 @@ func init() {
 	clkBase = base + clkOffset
 }
 
-// Pin mode, a pin can be set in Input or Output mode, or clock
+// Pin mode, a pin can be set in Input or Output, Clock or Pwm mode
 const (
 	Input Mode = iota
 	Output
 	Clock
+	Pwm
 )
 
 // State of pin, High / Low
@@ -135,6 +136,11 @@ func (pin Pin) Clock() {
 	PinMode(pin, Clock)
 }
 
+// Set pin as Pwm
+func (pin Pin) Pwm() {
+	PinMode(pin, Pwm)
+}
+
 // Set pin High
 func (pin Pin) High() {
 	WritePin(pin, High)
@@ -150,6 +156,7 @@ func (pin Pin) Toggle() {
 	TogglePin(pin)
 }
 
+// Set frequency of Clock pin
 func (pin Pin) Freq(freq int) {
 	SetFreq(pin, freq)
 }
@@ -189,15 +196,19 @@ func (pin Pin) PullOff() {
 	PullMode(pin, PullOff)
 }
 
-// PinMode sets the mode (direction) of a given pin (Input, Output or Clock)
+// PinMode sets the mode (direction) of a given pin (Input, Output, Clock or Pwm)
 //
-// Clock is possible only for some pins (bcm 4, 5, 6, 20, 21)
+// Clock is possible only for pins 4, 5, 6, 20, 21
+// Pwm is possible only for pins 12, 13, 18, 19
 func PinMode(pin Pin, mode Mode) {
 
 	// Pin fsel register, 0 or 1 depending on bank
 	fselReg := uint8(pin) / 10
 	shift := (uint8(pin) % 10) * 3
 	f := uint32(0)
+
+	const alt0 = 4 // 100
+	const alt5 = 2 // 010
 
 	switch mode {
 	case Input:
@@ -207,9 +218,18 @@ func PinMode(pin Pin, mode Mode) {
 	case Clock:
 		switch pin {
 		case 4, 5, 6, 32, 34, 42, 43, 44:
-			f = 4 // 100 - alt0
+			f = alt0
 		case 20, 21:
-			f = 2 // 010 - alt5
+			f = alt5
+		default:
+			return
+		}
+	case Pwm:
+		switch pin {
+		case 12, 13, 40, 41, 45:
+			f = alt0
+		case 18, 19:
+			f = alt5
 		default:
 			return
 		}
