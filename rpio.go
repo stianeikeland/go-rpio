@@ -4,7 +4,7 @@ Package rpio provides GPIO access on the Raspberry PI without any need
 for external c libraries (ex: WiringPI or BCM2835).
 
 Supports simple operations such as:
-- Pin mode/direction (input/output/clock)
+- Pin mode/direction (input/output/clock/pwm)
 - Pin write (high/low)
 - Pin read (high/low)
 - Pull up/down/off
@@ -166,6 +166,11 @@ func (pin Pin) Freq(freq int) {
 	SetFreq(pin, freq)
 }
 
+// Set duty cycle for pwm pin
+func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
+	SetDutyCycle(pin, dutyLen, cycleLen)
+}
+
 // Set pin Mode
 func (pin Pin) Mode(mode Mode) {
 	PinMode(pin, mode)
@@ -295,9 +300,9 @@ func TogglePin(pin Pin) {
 
 func PullMode(pin Pin, pull Pull) {
 	// Pull up/down/off register has offset 38 / 39, pull is 37
-	pullClkReg := uint8(pin)/32 + 38
+	pullClkReg := pin/32 + 38
 	pullReg := 37
-	shift := (uint8(pin) % 32)
+	shift := pin % 32
 
 	memlock.Lock()
 	defer memlock.Unlock()
@@ -322,37 +327,44 @@ func PullMode(pin Pin, pull Pull) {
 
 }
 
-// Set clock speed for given pin
+// Set clock speed for given pin in Clock or Pwm mode
 //
 // freq should be in range 4688Hz - 19.2MHz to prevent unexpected behavior
-// (for smaller frequencies implement custom software clock using output pin and sleep)
+// (for smaller frequencies use Pwm pin with large cycle range or implement custom software clock using output pin and sleep)
 //
 // Note that some pins share the same clock source, it means that
 // changing frequency for one pin will change it also for all pins within a group
 // The groups are: clk0 (4, 20, 32, 34), clk1 (5, 21, 42, 43) and clk2 (6 and 43)
+// Also all pwm pins (12, 13, 18, 19, 40, 41, 45) share same source clock,
+// but final output frequency of pwm chanel can be adjusted individually with setDutyCycle
 func SetFreq(pin Pin, freq int) {
 	// TODO: would be nice to choose best clock source depending on target frequency, oscilator is used for now
 	const sourceFreq = 19200000 // oscilator frequency
-	const maxUint12 = 4095
+	const divMask = 4095        // divi and divf have 12 bits each
 
 	divi := uint32(sourceFreq / freq)
 	divf := uint32(((sourceFreq % freq) << 12) / freq)
 
-	divi &= maxUint12
-	divf &= maxUint12
+	divi &= divMask
+	divf &= divMask
 
 	clkCtlReg := 28
-	clkDivReg := 29
+	clkDivReg := 28
 	switch pin {
 	case 4, 20, 32, 34: // clk0
 		clkCtlReg += 0
-		clkDivReg += 0
+		clkDivReg += 1
 	case 5, 21, 42, 44: // clk1
 		clkCtlReg += 2
-		clkDivReg += 2
+		clkDivReg += 3
 	case 6, 43: // clk2
 		clkCtlReg += 4
-		clkDivReg += 4
+		clkDivReg += 5
+	case 12, 13, 40, 41, 45, 18, 19: // pwm_clk - shared clk for both pwm chanels
+		clkCtlReg += 12
+		clkDivReg += 13
+		StopPwm()
+		defer StartPwm()
 	default:
 		return
 	}
@@ -384,6 +396,62 @@ func SetFreq(pin Pin, freq int) {
 	clkMem[clkCtlReg] = PASSWORD | mash | src | enab // finally start clock
 
 	// NOTE without root permission this changes will simply do nothing successfully
+}
+
+// Set cycle length (range) and duty length (data) for pwm in M/S mode
+//
+//  |<- duty ->|
+//   __________
+// _/          \___________/
+//  |<------ cycle ------->|
+//
+// Note that some pins share common pwm chanel,
+// so calling this function will set same duty cycle for all pins belonig to chanel
+// Its chanel pwm0 for pins 12, 18, 40, and pwm1 for pins 13, 19, 41, 45
+func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
+	const pwmCtlReg = 0
+	var (
+		pwmDatReg uint
+		pwmRngReg uint
+		shift     uint // offset inside ctlReg
+	)
+
+	switch pin {
+	case 12, 18, 40: // chanel pwm0
+		pwmDatReg = 4
+		pwmRngReg = 5
+		shift = 0
+	case 13, 19, 41, 45: // chanel pwm1
+		pwmDatReg = 8
+		pwmDatReg = 9
+		shift = 8
+	default:
+		return
+	}
+
+	const ctlMask = 255 // ctl setting has 8 bits for each chanel
+	const msen = 1 << 7 // use M/S transition instead of pwm algorithm
+
+	// reset settings
+	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift
+	// set duty cycle
+	pwmMem[pwmDatReg] = dutyLen
+	pwmMem[pwmRngReg] = cycleLen
+	time.Sleep(time.Microsecond * 10)
+}
+
+// Stop pwm for both chanels
+func StopPwm() {
+	const pwmCtlReg = 0
+	const pwen = 1
+	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg] &^ (pwen<<8 | pwen)
+}
+
+// start pwm for both chanels
+func StartPwm() {
+	const pwmCtlReg = 0
+	const pwen = 1
+	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg] | pwen<<8 | pwen
 }
 
 // Open and memory map GPIO memory range from /dev/mem .
