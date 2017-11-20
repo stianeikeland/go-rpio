@@ -363,7 +363,7 @@ func SetFreq(pin Pin, freq int) {
 	case 12, 13, 40, 41, 45, 18, 19: // pwm_clk - shared clk for both pwm chanels
 		clkCtlReg += 12
 		clkDivReg += 13
-		StopPwm()
+		StopPwm() // pwm clk busy wont go down without stopping pwm first
 		defer StartPwm()
 	default:
 		return
@@ -418,11 +418,11 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 
 	switch pin {
 	case 12, 18, 40: // chanel pwm0
-		pwmDatReg = 4
-		pwmRngReg = 5
+		pwmRngReg = 4
+		pwmDatReg = 5
 		shift = 0
 	case 13, 19, 41, 45: // chanel pwm1
-		pwmDatReg = 8
+		pwmRngReg = 8
 		pwmDatReg = 9
 		shift = 8
 	default:
@@ -430,14 +430,17 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 	}
 
 	const ctlMask = 255 // ctl setting has 8 bits for each chanel
+	const pwen = 1 << 0 // enable pwm
 	const msen = 1 << 7 // use M/S transition instead of pwm algorithm
 
 	// reset settings
-	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift
+	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift | pwen <<shift
 	// set duty cycle
 	pwmMem[pwmDatReg] = dutyLen
 	pwmMem[pwmRngReg] = cycleLen
 	time.Sleep(time.Microsecond * 10)
+
+	// NOTE without root permission this changes will simply do nothing successfully
 }
 
 // Stop pwm for both chanels
@@ -447,7 +450,7 @@ func StopPwm() {
 	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg] &^ (pwen<<8 | pwen)
 }
 
-// start pwm for both chanels
+// Start pwm for both chanels
 func StartPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
@@ -485,7 +488,7 @@ func Open() (err error) {
 		return
 	}
 
-	pwmMem, pwmMem8, err = memMap(file.Fd(), clkBase)
+	pwmMem, pwmMem8, err = memMap(file.Fd(), pwmBase)
 	if err != nil {
 		return
 	}
