@@ -161,12 +161,12 @@ func (pin Pin) Toggle() {
 	TogglePin(pin)
 }
 
-// Set frequency of Clock pin
+// Set frequency of Clock or Pwm pin (see doc of SetFreq)
 func (pin Pin) Freq(freq int) {
 	SetFreq(pin, freq)
 }
 
-// Set duty cycle for pwm pin
+// Set duty cycle for Pwm pin (see doc of SetDutyCycle)
 func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
 	SetDutyCycle(pin, dutyLen, cycleLen)
 }
@@ -329,14 +329,14 @@ func PullMode(pin Pin, pull Pull) {
 
 // Set clock speed for given pin in Clock or Pwm mode
 //
-// freq should be in range 4688Hz - 19.2MHz to prevent unexpected behavior
-// (for smaller frequencies use Pwm pin with large cycle range or implement custom software clock using output pin and sleep)
+// Param freq should be in range 4688Hz - 19.2MHz to prevent unexpected behavior,
+// hovewer output frequency of Pwm pins can be further adjusted with setDutyCycle.
+// (Thus for smaller frequencies use Pwm pin with large cycle range or implement custom software clock using output pin and sleep.)
 //
 // Note that some pins share the same clock source, it means that
 // changing frequency for one pin will change it also for all pins within a group
-// The groups are: clk0 (4, 20, 32, 34), clk1 (5, 21, 42, 43) and clk2 (6 and 43)
-// Also all pwm pins (12, 13, 18, 19, 40, 41, 45) share same source clock,
-// but final output frequency of pwm chanel can be adjusted individually with setDutyCycle
+// The groups are: clk0 (4, 20, 32, 34), clk1 (5, 21, 42, 43) and clk2 (6 and 43).
+// Also all pwm pins (12, 13, 18, 19, 40, 41, 45) share same source clock.
 func SetFreq(pin Pin, freq int) {
 	// TODO: would be nice to choose best clock source depending on target frequency, oscilator is used for now
 	const sourceFreq = 19200000 // oscilator frequency
@@ -360,7 +360,7 @@ func SetFreq(pin Pin, freq int) {
 	case 6, 43: // clk2
 		clkCtlReg += 4
 		clkDivReg += 5
-	case 12, 13, 40, 41, 45, 18, 19: // pwm_clk - shared clk for both pwm chanels
+	case 12, 13, 40, 41, 45, 18, 19: // pwm_clk - shared clk for both pwm channels
 		clkCtlReg += 12
 		clkDivReg += 13
 		StopPwm() // pwm clk busy wont go down without stopping pwm first
@@ -400,14 +400,21 @@ func SetFreq(pin Pin, freq int) {
 
 // Set cycle length (range) and duty length (data) for pwm in M/S mode
 //
-//  |<- duty ->|
-//   __________
-// _/          \___________/
-//  |<------ cycle ------->|
+//   |<- duty ->|
+//    __________
+//  _/          \_____________/
+//   |<------- cycle -------->|
 //
-// Note that some pins share common pwm chanel,
-// so calling this function will set same duty cycle for all pins belonig to chanel
-// Its chanel pwm0 for pins 12, 18, 40, and pwm1 for pins 13, 19, 41, 45
+// Output frequency is computed as pwm clock frequency divided by cycle length
+// So, to set Pwm pin to freqency 38kHz with duty cycle 1/4 use this combination:
+//
+//	pin.Pwm()
+//  pin.DutyCycle(1, 4)
+//  pin.Freq(38000*4)
+//
+// Note that some pins share common pwm channel,
+// so calling this function will set same duty cycle for all pins belongig to channel.
+// It is channel 1 (pwm0) for pins 12, 18, 40, and channel 2 (pwm1) for pins 13, 19, 41, 45.
 func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 	const pwmCtlReg = 0
 	var (
@@ -417,11 +424,11 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 	)
 
 	switch pin {
-	case 12, 18, 40: // chanel pwm0
+	case 12, 18, 40: // channel pwm0
 		pwmRngReg = 4
 		pwmDatReg = 5
 		shift = 0
-	case 13, 19, 41, 45: // chanel pwm1
+	case 13, 19, 41, 45: // channel pwm1
 		pwmRngReg = 8
 		pwmDatReg = 9
 		shift = 8
@@ -429,7 +436,7 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 		return
 	}
 
-	const ctlMask = 255 // ctl setting has 8 bits for each chanel
+	const ctlMask = 255 // ctl setting has 8 bits for each channel
 	const pwen = 1 << 0 // enable pwm
 	const msen = 1 << 7 // use M/S transition instead of pwm algorithm
 
@@ -443,14 +450,14 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 	// NOTE without root permission this changes will simply do nothing successfully
 }
 
-// Stop pwm for both chanels
+// Stop pwm for both channels
 func StopPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
 	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg] &^ (pwen<<8 | pwen)
 }
 
-// Start pwm for both chanels
+// Start pwm for both channels
 func StartPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
