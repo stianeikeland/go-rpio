@@ -500,12 +500,13 @@ func Open() (err error) {
 		return
 	}
 
-	// Memory map clock reisters to slice
+	// Memory map clock registers to slice
 	clkMem, clkMem8, err = memMap(file.Fd(), clkBase)
 	if err != nil {
 		return
 	}
 
+	// Memory map pwm registers to slice
 	pwmMem, pwmMem8, err = memMap(file.Fd(), pwmBase)
 	if err != nil {
 		return
@@ -541,6 +542,9 @@ func Close() error {
 		return err
 	}
 	if err := syscall.Munmap(clkMem8); err != nil {
+		return err
+	}
+	if err := syscall.Munmap(pwmMem8); err != nil {
 		return err
 	}
 	return nil
