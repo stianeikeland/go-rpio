@@ -16,7 +16,8 @@ There's a tiny bit of additional information over at my [blog](https://blog.eike
 ## Releases ##
 - 1.0.0 - Supports original rpi A/B/B+
 - 2.0.0 - Adds support for rpi 2, by @akramer
-- 3.0.0 - Add support for /dev/gpiomem, by @dotdoom
+- 3.0.0 - Adds support for /dev/gpiomem, by @dotdoom
+- 4.0.0 - Adds support for PWM and Clock modes, by @Drahoslav7
 
 ## Usage ##
 
@@ -73,12 +74,8 @@ Currently, it supports basic functionality such as:
 - Write (High / Low)
 - Read (High / Low)
 - Pull (Up / Down / Off)
-
-Would be nice to add in the future:
 - PWM
-- I2C
-- SPI
-- etc...
+- Clock
 
 It works by memory-mapping the bcm2835 gpio range, and therefore require root/administrative-rights to run.
 
@@ -88,3 +85,6 @@ This library can utilize the new [/dev/gpiomem](https://github.com/raspberrypi/l
 memory range if available. 
 
 You will probably need to upgrade to the latest kernel (or wait for the next raspbian release) if you're missing /dev/gpiomem. You will also need to add a `gpio` group, add your user to the group, and then set up udev rules. I would recommend using [create_gpio_user_permissions.py](https://github.com/waveform80/rpi-gpio/blob/master/create_gpio_user_permissions.py) if you're unsure how to do this.
+
+PWM modes will still require root.
+
