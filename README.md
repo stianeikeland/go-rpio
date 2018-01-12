@@ -3,6 +3,8 @@ go-rpio
 
 Native GPIO-Gophers for your Pi!
 
+**Documentation:** [![GoDoc](https://godoc.org/github.com/stianeikeland/go-rpio?status.svg)](https://godoc.org/github.com/stianeikeland/go-rpio)
+
 go-rpio is a Go library for accessing [GPIO](http://elinux.org/Rpi_Low-level_peripherals)-pins
 on the [Raspberry Pi](https://en.wikipedia.org/wiki/Raspberry_Pi).
 
