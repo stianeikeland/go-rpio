@@ -323,12 +323,12 @@ func TogglePin(pin Pin) {
 
 // Enable edge event detection on pin
 // 
-// Call with RiseEdge followed by call with FallEdge has the same effect as call with AnyEdge,
-// to disable previously enabled event call it with NoEdge.
-// 
 // Combine with pin.EdgeDetected() to check whether event occured.
 //
-// It also clears previously detected events of this pin if any.
+// It also clears previously detected event of this pin if any.
+//
+// Note that call with RiseEdge followed by call with FallEdge has the same effect as call with AnyEdge,
+// to disable previously enabled event call it with NoEdge.
 func DetectEdge(pin Pin, edge Edge) {
 	p := uint8(pin)
 
