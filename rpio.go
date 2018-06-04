@@ -335,7 +335,7 @@ func DetectEdge(pin Pin, edge Edge) {
 	// Rising edge detect enable register (19/20 depending on bank)
 	// Falling edge detect enable register (22/23 depending on bank)
 	renReg := p/32 + 19
-	fenReg := p/32 + 23
+	fenReg := p/32 + 22
 
 	if edge == NoEdge { // clear bits
 		gpioMem[renReg] = gpioMem[renReg] &^ (1 << (p&31))
@@ -362,7 +362,7 @@ func EdgeDetected(pin Pin) bool {
 
 	test := gpioMem[edsReg] & (1 << (p&31))
 	gpioMem[edsReg] = test // set bit to clear it
-	return test > 0
+	return test != 0
 }
 
 func PullMode(pin Pin, pull Pull) {
