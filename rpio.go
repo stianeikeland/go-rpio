@@ -123,7 +123,7 @@ const (
 )
 
 // Edge events
-const  (
+const (
 	NoEdge Edge = iota
 	RiseEdge
 	FallEdge
@@ -229,7 +229,7 @@ func (pin Pin) Detect(edge Edge) {
 // Check edge event on pin
 func (pin Pin) EdgeDetected() bool {
 	return EdgeDetected(pin)
-} 
+}
 
 // PinMode sets the mode (direction) of a given pin (Input, Output, Clock or Pwm)
 //
@@ -322,33 +322,38 @@ func TogglePin(pin Pin) {
 }
 
 // Enable edge event detection on pin
-// 
+//
 // Combine with pin.EdgeDetected() to check whether event occured.
 //
 // It also clears previously detected event of this pin if any.
 //
-// Note that call with RiseEdge followed by call with FallEdge has the same effect as call with AnyEdge,
-// to disable previously enabled event call it with NoEdge.
+// Note that call with RiseEdge will disable previously set FallEdge detection and vice versa
+// You have to call with AnyEdge, to enable detection for both edges
+// To disable previously enabled detection call it with NoEdge
 func DetectEdge(pin Pin, edge Edge) {
 	p := uint8(pin)
 
 	// Rising edge detect enable register (19/20 depending on bank)
 	// Falling edge detect enable register (22/23 depending on bank)
+	// Event detect status register (16/17)
 	renReg := p/32 + 19
 	fenReg := p/32 + 22
+	edsReg := p/32 + 16
 
-	if edge == NoEdge { // clear bits
-		gpioMem[renReg] = gpioMem[renReg] &^ (1 << (p&31))
-		gpioMem[fenReg] = gpioMem[fenReg] &^ (1 << (p&31))
+	bit := uint32(1 << (p & 31))
+
+	if edge&RiseEdge > 0 { // set bit
+		gpioMem[renReg] = gpioMem[renReg] | bit
+	} else { // clear bit
+		gpioMem[renReg] = gpioMem[renReg] &^ bit
 	}
-	if edge & RiseEdge > 0 { // set bit
-		gpioMem[renReg] = gpioMem[renReg] | (1 << (p&31))
-	}
-	if edge & FallEdge > 0 { // set bit
-		gpioMem[fenReg] = gpioMem[fenReg] | (1 << (p&31))
+	if edge&FallEdge > 0 { // set bit
+		gpioMem[fenReg] = gpioMem[fenReg] | bit
+	} else { // clear bit
+		gpioMem[fenReg] = gpioMem[fenReg] &^ bit
 	}
 
-	EdgeDetected(pin) // to clear outdated detection
+	gpioMem[edsReg] = bit // to clear outdated detection
 }
 
 // Check whether edge event occured
@@ -360,7 +365,7 @@ func EdgeDetected(pin Pin) bool {
 	// Event detect status register (16/17)
 	edsReg := p/32 + 16
 
-	test := gpioMem[edsReg] & (1 << (p&31))
+	test := gpioMem[edsReg] & (1 << (p & 31))
 	gpioMem[edsReg] = test // set bit to clear it
 	return test != 0
 }
@@ -376,7 +381,7 @@ func PullMode(pin Pin, pull Pull) {
 
 	switch pull {
 	case PullDown, PullUp:
-		gpioMem[pullReg] = gpioMem[pullReg] &^ 3 | uint32(pull)
+		gpioMem[pullReg] = gpioMem[pullReg]&^3 | uint32(pull)
 	case PullOff:
 		gpioMem[pullReg] = gpioMem[pullReg] &^ 3
 	}

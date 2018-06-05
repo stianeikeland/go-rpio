@@ -2,7 +2,7 @@
 
 An example of edge event handling by @Drahoslav7, using the go-rpio library
 
-Waits for button to be pressed before exit.
+Waits for button to be pressed twice before exit.
 
 Connect a button between pin 22 and some GND pin.
 
@@ -12,8 +12,9 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"os"
+	"time"
+
 	"github.com/stianeikeland/go-rpio"
 )
 
@@ -37,12 +38,12 @@ func main() {
 
 	fmt.Println("press a button")
 
-	for {
+	for i := 0; i < 2; {
 		if pin.EdgeDetected() { // check if event occured
-			fmt.Println("button pressed less than a second ago")
-			break
+			fmt.Println("button pressed")
+			i++
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / 2)
 	}
 	pin.Detect(rpio.NoEdge) // disable edge event detection
 }

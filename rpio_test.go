@@ -1,20 +1,21 @@
 package rpio
 
 import (
+	"os"
 	"testing"
 	"time"
-	"os"
 )
 
 func TestMain(m *testing.M) {
+	println("Note: bcm pins 2 and 3 has to be directly connected")
 	if err := Open(); err != nil {
 		panic(err)
 	}
+	defer Close()
 	os.Exit(m.Run())
 }
 
 func TestRisingEdgeEvent(t *testing.T) {
-	// bcm pins 2 and 3 has to be directly connected
 	src := Pin(3)
 	src.Mode(Output)
 	src.Low()
@@ -25,19 +26,20 @@ func TestRisingEdgeEvent(t *testing.T) {
 	pin.Detect(RiseEdge)
 
 	timeout := time.After(time.Second)
-	loop: for {
+loop:
+	for {
 		src.High()
 
-		time.Sleep(time.Second/5)
+		time.Sleep(time.Second / 5)
 		if pin.EdgeDetected() {
 			t.Log("edge rised")
 		} else {
-			t.Errorf("Raise event should be detected")
+			t.Errorf("Rise event should be detected")
 		}
 		select {
-			case <- timeout:
-				break loop
-			default:
+		case <-timeout:
+			break loop
+		default:
 		}
 
 		src.Low()
@@ -48,12 +50,11 @@ func TestRisingEdgeEvent(t *testing.T) {
 	pin.Detect(NoEdge)
 	src.High()
 	if pin.EdgeDetected() {
-		t.Error("Fall should not be detected, events disabled")
+		t.Error("Rise should not be detected, events disabled")
 	}
 }
 
 func TestFallingEdgeEvent(t *testing.T) {
-	// bcm pins 2 and 3 has to be directly connected
 	src := Pin(3)
 	src.Mode(Output)
 	src.High()
@@ -64,23 +65,24 @@ func TestFallingEdgeEvent(t *testing.T) {
 	pin.Detect(FallEdge)
 
 	timeout := time.After(time.Second)
-	loop: for {
-			src.Low()
+loop:
+	for {
+		src.Low()
 
-			time.Sleep(time.Second/5)
-			if pin.EdgeDetected() {
-				t.Log("edge fallen")
-			} else {
-				t.Errorf("Fall event should be detected")
-			}
+		time.Sleep(time.Second / 5)
+		if pin.EdgeDetected() {
+			t.Log("edge fallen")
+		} else {
+			t.Errorf("Fall event should be detected")
+		}
 
-			select {
-				case <- timeout:
-					break loop
-				default:
-			}
+		select {
+		case <-timeout:
+			break loop
+		default:
+		}
 
-			src.High()
+		src.High()
 	}
 	if pin.EdgeDetected() {
 		t.Error("Fall should not be detected, no change since last call")
