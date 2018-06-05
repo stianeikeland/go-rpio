@@ -284,10 +284,10 @@ func PinMode(pin Pin, mode Mode) {
 func WritePin(pin Pin, state State) {
 	p := uint8(pin)
 
-	// Clear register, 10 / 11 depending on bank
 	// Set register, 7 / 8 depending on bank
-	clearReg := p/32 + 10
+	// Clear register, 10 / 11 depending on bank
 	setReg := p/32 + 7
+	clearReg := p/32 + 10
 
 	memlock.Lock()
 	defer memlock.Unlock()
@@ -312,14 +312,23 @@ func ReadPin(pin Pin) State {
 }
 
 // Toggle a pin state (high -> low -> high)
-// TODO: probably possible to do this much faster without read
 func TogglePin(pin Pin) {
-	switch ReadPin(pin) {
-	case Low:
-		pin.High()
-	case High:
-		pin.Low()
+	p := uint8(pin)
+
+	setReg := p/32 + 7
+	clearReg := p/32 + 10
+	levelReg := p/32 + 13
+
+	bit := uint32(1 << (p & 31))
+
+	memlock.Lock()
+
+	if (gpioMem[levelReg] & bit) != 0 {
+		gpioMem[clearReg] = bit
+	} else {
+		gpioMem[setReg] = bit
 	}
+	memlock.Unlock()
 }
 
 // Enable edge event detection on pin.

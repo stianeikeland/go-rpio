@@ -119,3 +119,35 @@ func TestEvent(t *testing.T) {
 	})
 
 }
+
+func BenchmarkToggle(b *testing.B) {
+	src := Pin(3)
+	src.Mode(Output)
+	src.Low()
+
+	pin := Pin(2)
+	pin.Mode(Input)
+	pin.PullDown()
+
+	oldToggle := func(pin Pin) {
+		switch ReadPin(pin) {
+		case Low:
+			pin.High()
+		case High:
+			pin.Low()
+		}
+	}
+
+	b.Run("old toggle", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			oldToggle(src)
+		}
+	})
+
+	b.Run("current toggle", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			TogglePin(src)
+		}
+	})
+
+}
