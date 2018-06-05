@@ -129,25 +129,72 @@ func BenchmarkToggle(b *testing.B) {
 	pin.Mode(Input)
 	pin.PullDown()
 
-	oldToggle := func(pin Pin) {
-		switch ReadPin(pin) {
-		case Low:
-			pin.High()
-		case High:
-			pin.Low()
-		}
-	}
-
-	b.Run("old toggle", func(b *testing.B) {
+	b.Run("old", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			oldToggle(src)
 		}
 	})
 
-	b.Run("current toggle", func(b *testing.B) {
+	b.Run("current", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			TogglePin(src)
 		}
 	})
 
+}
+
+func BenchmarkWrite(b *testing.B) {
+	src := Pin(3)
+	src.Mode(Output)
+	src.Low()
+
+	pin := Pin(2)
+	pin.Mode(Input)
+	pin.PullDown()
+
+	b.Run("old", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if i%2 == 0 {
+				oldWrite(src, High)
+			} else {
+				oldWrite(src, Low)
+			}
+		}
+	})
+
+	b.Run("current", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if i%2 == 0 {
+				WritePin(src, High)
+			} else {
+				WritePin(src, Low)
+			}
+		}
+	})
+
+}
+
+func oldToggle(pin Pin) {
+	switch ReadPin(pin) {
+	case Low:
+		oldWrite(pin, High)
+	case High:
+		oldWrite(pin, Low)
+	}
+}
+
+func oldWrite(pin Pin, state State) {
+	p := uint8(pin)
+
+	setReg := p/32 + 7
+	clearReg := p/32 + 10
+
+	memlock.Lock()
+	defer memlock.Unlock()
+
+	if state == Low {
+		gpioMem[clearReg] = 1 << (p & 31)
+	} else {
+		gpioMem[setReg] = 1 << (p & 31)
+	}
 }

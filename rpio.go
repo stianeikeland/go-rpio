@@ -290,13 +290,13 @@ func WritePin(pin Pin, state State) {
 	clearReg := p/32 + 10
 
 	memlock.Lock()
-	defer memlock.Unlock()
 
 	if state == Low {
 		gpioMem[clearReg] = 1 << (p & 31)
 	} else {
 		gpioMem[setReg] = 1 << (p & 31)
 	}
+	memlock.Unlock() // not deferring saves ~600ns
 }
 
 // Read the state of a pin
