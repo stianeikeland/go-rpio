@@ -6,6 +6,7 @@ Supports simple operations such as:
 	- Pin mode/direction (input/output/clock/pwm)
 	- Pin write (high/low)
 	- Pin read (high/low)
+	- Pin edge detection (no/rise/fall/any)
 	- Pull up/down/off
 And clock/pwm related oparations:
 	- Set Clock frequency
@@ -76,6 +77,7 @@ type Mode uint8
 type Pin uint8
 type State uint8
 type Pull uint8
+type Edge uint8
 
 // Memory offsets for gpio, see the spec for more details
 const (
@@ -119,6 +121,14 @@ const (
 	PullOff Pull = iota
 	PullDown
 	PullUp
+)
+
+// Edge events
+const (
+	NoEdge Edge = iota
+	RiseEdge
+	FallEdge
+	AnyEdge = RiseEdge | FallEdge
 )
 
 // Arrays for 8 / 32 bit access to memory and a semaphore for write locking
@@ -212,6 +222,16 @@ func (pin Pin) PullOff() {
 	PullMode(pin, PullOff)
 }
 
+// Enable edge event detection on pin
+func (pin Pin) Detect(edge Edge) {
+	DetectEdge(pin, edge)
+}
+
+// Check edge event on pin
+func (pin Pin) EdgeDetected() bool {
+	return EdgeDetected(pin)
+}
+
 // PinMode sets the mode (direction) of a given pin (Input, Output, Clock or Pwm)
 //
 // Clock is possible only for pins 4, 5, 6, 20, 21.
@@ -262,7 +282,6 @@ func PinMode(pin Pin, mode Mode) {
 // WritePin sets a given pin High or Low
 // by setting the clear or set registers respectively
 func WritePin(pin Pin, state State) {
-
 	p := uint8(pin)
 
 	// Clear register, 10 / 11 depending on bank
@@ -278,7 +297,6 @@ func WritePin(pin Pin, state State) {
 	} else {
 		gpioMem[setReg] = 1 << (p & 31)
 	}
-
 }
 
 // Read the state of a pin
@@ -302,6 +320,60 @@ func TogglePin(pin Pin) {
 	case High:
 		pin.Low()
 	}
+}
+
+// Enable edge event detection on pin.
+//
+// Combine with pin.EdgeDetected() to check whether event occured.
+//
+// Note that using this function might conflict with the same functionality of other gpio library.
+//
+// It also clears previously detected event of this pin if any.
+//
+// Note that call with RiseEdge will disable previously set FallEdge detection and vice versa.
+// You have to call with AnyEdge, to enable detection for both edges.
+// To disable previously enabled detection call it with NoEdge.
+func DetectEdge(pin Pin, edge Edge) {
+	p := uint8(pin)
+
+	// Rising edge detect enable register (19/20 depending on bank)
+	// Falling edge detect enable register (22/23 depending on bank)
+	// Event detect status register (16/17)
+	renReg := p/32 + 19
+	fenReg := p/32 + 22
+	edsReg := p/32 + 16
+
+	bit := uint32(1 << (p & 31))
+
+	if edge&RiseEdge > 0 { // set bit
+		gpioMem[renReg] = gpioMem[renReg] | bit
+	} else { // clear bit
+		gpioMem[renReg] = gpioMem[renReg] &^ bit
+	}
+	if edge&FallEdge > 0 { // set bit
+		gpioMem[fenReg] = gpioMem[fenReg] | bit
+	} else { // clear bit
+		gpioMem[fenReg] = gpioMem[fenReg] &^ bit
+	}
+
+	gpioMem[edsReg] = bit // to clear outdated detection
+}
+
+// Check whether edge event occured since last call
+// or since detection was enabled
+//
+// There is no way (yet) to handle interruption caused by edge event, you have to use polling.
+//
+// Event detection has to be enabled first, by pin.Detect(edge)
+func EdgeDetected(pin Pin) bool {
+	p := uint8(pin)
+
+	// Event detect status register (16/17)
+	edsReg := p/32 + 16
+
+	test := gpioMem[edsReg] & (1 << (p & 31))
+	gpioMem[edsReg] = test // set bit to clear it
+	return test != 0
 }
 
 func PullMode(pin Pin, pull Pull) {
@@ -343,7 +415,7 @@ func PullMode(pin Pin, pull Pull) {
 // changing frequency for one pin will change it also for all pins within a group.
 // The groups are:
 //   gp_clk0: pins 4, 20, 32, 34
-//   gp_clk1: pins 5, 21, 42, 43
+//   gp_clk1: pins 5, 21, 42, 44
 //   gp_clk2: pins 6 and 43
 //   pwm_clk: pins 12, 13, 18, 19, 40, 41, 45
 func SetFreq(pin Pin, freq int) {
@@ -452,7 +524,7 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 	const msen = 1 << 7 // use M/S transition instead of pwm algorithm
 
 	// reset settings
-	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift | pwen <<shift
+	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift | pwen<<shift
 	// set duty cycle
 	pwmMem[pwmDatReg] = dutyLen
 	pwmMem[pwmRngReg] = cycleLen
