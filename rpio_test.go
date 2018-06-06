@@ -15,81 +15,106 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestRisingEdgeEvent(t *testing.T) {
+func TestEvent(t *testing.T) {
 	src := Pin(3)
 	src.Mode(Output)
-	src.Low()
 
 	pin := Pin(2)
 	pin.Mode(Input)
 	pin.PullDown()
-	pin.Detect(RiseEdge)
 
-	timeout := time.After(time.Second)
-loop:
-	for {
-		src.High()
-
-		time.Sleep(time.Second / 5)
-		if pin.EdgeDetected() {
-			t.Log("edge rised")
-		} else {
-			t.Errorf("Rise event should be detected")
-		}
-		select {
-		case <-timeout:
-			break loop
-		default:
-		}
-
-		src.Low()
-	}
-	if pin.EdgeDetected() {
-		t.Error("Rise should not be detected, no change since last call")
-	}
-	pin.Detect(NoEdge)
-	src.High()
-	if pin.EdgeDetected() {
-		t.Error("Rise should not be detected, events disabled")
-	}
-}
-
-func TestFallingEdgeEvent(t *testing.T) {
-	src := Pin(3)
-	src.Mode(Output)
-	src.High()
-
-	pin := Pin(2)
-	pin.Mode(Input)
-	pin.PullDown()
-	pin.Detect(FallEdge)
-
-	timeout := time.After(time.Second)
-loop:
-	for {
+	t.Run("rising edge", func(t *testing.T) {
+		pin.Detect(RiseEdge)
 		src.Low()
 
-		time.Sleep(time.Second / 5)
+		for i := 0; ; i++ {
+			src.High()
+
+			time.Sleep(time.Second / 10)
+			if pin.EdgeDetected() {
+				t.Log("edge rised")
+			} else {
+				t.Errorf("Rise event should be detected")
+			}
+			if i == 5 {
+				break
+			}
+
+			src.Low()
+		}
+
+		time.Sleep(time.Second / 10)
 		if pin.EdgeDetected() {
-			t.Log("edge fallen")
-		} else {
-			t.Errorf("Fall event should be detected")
+			t.Error("Rise should not be detected, no change since last call")
 		}
-
-		select {
-		case <-timeout:
-			break loop
-		default:
-		}
-
+		pin.Detect(NoEdge)
 		src.High()
-	}
-	if pin.EdgeDetected() {
-		t.Error("Fall should not be detected, no change since last call")
-	}
-	pin.Detect(NoEdge)
-	src.Low()
-	if pin.EdgeDetected() {
-		t.Error("Fall should not be detected, events disabled")
-	}
+		if pin.EdgeDetected() {
+			t.Error("Rise should not be detected, events disabled")
+		}
+
+	})
+
+	t.Run("falling edge", func(t *testing.T) {
+		pin.Detect(FallEdge)
+		src.High()
+
+		for i := 0; ; i++ {
+			src.Low()
+
+			time.Sleep(time.Second / 10)
+			if pin.EdgeDetected() {
+				t.Log("edge fallen")
+			} else {
+				t.Errorf("Fall event should be detected")
+			}
+
+			if i == 5 {
+				break
+			}
+
+			src.High()
+		}
+		time.Sleep(time.Second / 10)
+		if pin.EdgeDetected() {
+			t.Error("Fall should not be detected, no change since last call")
+		}
+		pin.Detect(NoEdge)
+		src.Low()
+		if pin.EdgeDetected() {
+			t.Error("Fall should not be detected, events disabled")
+		}
+	})
+
+	t.Run("both edges", func(t *testing.T) {
+		pin.Detect(AnyEdge)
+		src.Low()
+
+		for i := 0; i < 5; i++ {
+			src.High()
+
+			if pin.EdgeDetected() {
+				t.Log("edge detected")
+			} else {
+				t.Errorf("Rise event shoud be detected")
+			}
+
+			src.Low()
+
+			if pin.EdgeDetected() {
+				t.Log("edge detected")
+			} else {
+				t.Errorf("Fall edge should be detected")
+			}
+		}
+
+		pin.Detect(NoEdge)
+		src.High()
+		src.Low()
+
+		if pin.EdgeDetected() {
+			t.Errorf("No edge should be detected, events disabled")
+		}
+
+	})
 }
