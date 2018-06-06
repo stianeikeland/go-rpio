@@ -20,6 +20,7 @@ There's a tiny bit of additional information over at my [blog](https://blog.eike
 - 2.0.0 - Adds support for rpi 2, by @akramer
 - 3.0.0 - Adds support for /dev/gpiomem, by @dotdoom
 - 4.0.0 - Adds support for PWM and Clock modes, by @Drahoslav7
+- 4.1.0 - Adds support for edge detection, by @Drahoslav7
 
 ## Usage ##
 
@@ -76,8 +77,9 @@ Currently, it supports basic functionality such as:
 - Write (High / Low)
 - Read (High / Low)
 - Pull (Up / Down / Off)
-- PWM
+- PWM (hardware, on supported pins)
 - Clock
+- Edge detection
 
 It works by memory-mapping the bcm2835 gpio range, and therefore require root/administrative-rights to run.
 
