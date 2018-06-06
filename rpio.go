@@ -6,6 +6,7 @@ Supports simple operations such as:
 	- Pin mode/direction (input/output/clock/pwm)
 	- Pin write (high/low)
 	- Pin read (high/low)
+	- Pin edge detection (no/rise/fall/any)
 	- Pull up/down/off
 And clock/pwm related oparations:
 	- Set Clock frequency
@@ -321,15 +322,17 @@ func TogglePin(pin Pin) {
 	}
 }
 
-// Enable edge event detection on pin
+// Enable edge event detection on pin.
 //
 // Combine with pin.EdgeDetected() to check whether event occured.
 //
+// Note that using this function might conflict with the same functionality of other gpio library.
+//
 // It also clears previously detected event of this pin if any.
 //
-// Note that call with RiseEdge will disable previously set FallEdge detection and vice versa
-// You have to call with AnyEdge, to enable detection for both edges
-// To disable previously enabled detection call it with NoEdge
+// Note that call with RiseEdge will disable previously set FallEdge detection and vice versa.
+// You have to call with AnyEdge, to enable detection for both edges.
+// To disable previously enabled detection call it with NoEdge.
 func DetectEdge(pin Pin, edge Edge) {
 	p := uint8(pin)
 
@@ -356,7 +359,10 @@ func DetectEdge(pin Pin, edge Edge) {
 	gpioMem[edsReg] = bit // to clear outdated detection
 }
 
-// Check whether edge event occured
+// Check whether edge event occured since last call
+// or since detection was enabled
+//
+// There is no way (yet) to handle interruption caused by edge event, you have to use polling.
 //
 // Event detection has to be enabled first, by pin.Detect(edge)
 func EdgeDetected(pin Pin) bool {
