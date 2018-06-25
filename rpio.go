@@ -131,6 +131,7 @@ func (swPwm *SoftwarePWM) Start(){
 
 func (swPwm *SoftwarePWM) Stop(){
 	swPwm.status = STOPPED
+	swPwm.pin.Write(Low)
 }
 
 func (swPwm *SoftwarePWM) pwmLoop(){
@@ -149,7 +150,6 @@ func (swPwm *SoftwarePWM) pwmLoop(){
 			}
 			time.Sleep(sleepInterval)
 		}
-		swPwm.pin.Write(Low)
 	}()
 }
 
