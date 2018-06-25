@@ -79,6 +79,70 @@ type State uint8
 type Pull uint8
 type Edge uint8
 
+type PwmStatus uint
+const (
+	STOPPED status = 0
+	RUNNING status = 1
+)
+
+type PwmState uint
+const (
+	OFF status = 0
+	ON status = 1
+)
+
+type SoftwarePWM struct {
+	pin Pin
+	freq uint32
+	dutyLen uint32
+	cycleLen uint32
+	status PwmStatus
+	state PwmState
+}
+
+//Create a Software PWM struct
+func CreateSofwarePWM(pin Pin, freq uint32, dutyLen uint32, cycleLen uint32) *SoftwarePWM{
+	//Set pin as Output
+	pin.Output()
+	return &SoftwarePWM{pin: pin, freq: freq, dutyLen: dutyLen, cycleLen: cycleLen}
+}
+
+func (swPwm SoftwarePWM) SetDutyCycle(dutyLen uint32, cycleLen uint32){
+	swPwm.dutyLen = dutyLen
+	swPwm.cycleLen = cycleLen
+}
+
+func (swPwm SoftwarePWM) SetFreq(freq uint32){
+	swPwm.freq = freq
+}
+
+func (swPwm SoftwarePWM) Start(){
+	swPwm.status = RUNNING
+	swPwm.pwmLoop()
+}
+
+func (swPwm SoftwarePWM) Stop(){
+	swPwm.status = STOPPED
+}
+
+func (swPwm SoftwarePWM) pwmLoop(){
+	go func(){
+		for swPwm.status == RUNNING {
+			sleepInterval := time.Second / swPwm.freq
+			if(swPwm.state == OFF){
+				swPwm.pin.Write(High)
+				swPwm.state = ON
+				sleepInterval * dutyLen
+			}else{
+				swPwm.pin.Write(Low)
+				swPwm.state = OFF
+				sleepInterval * (cycleLen - dutyLen)
+			}
+			time.Sleep(sleepInterval)
+		}
+	}()
+}
+
 // Memory offsets for gpio, see the spec for more details
 const (
 	bcm2835Base = 0x20000000
