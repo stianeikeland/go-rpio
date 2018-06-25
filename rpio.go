@@ -581,15 +581,6 @@ func (swPwm *SoftwarePWM) SetDutyCycle(dutyLen uint32, cycleLen uint32){
 	swPwm.cycleLen = cycleLen
 }
 
-//Sets the duty cycle percentage of 100 for the sofware PWM
-func (swPwm *SoftwarePWM) SetDutyCyclePercentage(percentage uint8){
-	if percentage > 100{
-		percentage = 100
-	}
-	swPwm.dutyLen = uint32(percentage)
-	swPwm.cycleLen = 100
-}
-
 //Sets the frequency of the software PWM
 func (swPwm *SoftwarePWM) SetFreq(freq uint32){
 	swPwm.freq = freq

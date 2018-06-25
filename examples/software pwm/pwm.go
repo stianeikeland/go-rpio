@@ -2,8 +2,8 @@
 
 A Software Based PWM example by @Ronin11, using the go-rpio library
 
-Toggles a LED on physical pin 19 (mcu pin 10)
-Connect a LED with resistor from pin 19 to ground.
+Toggles a LED on physical pin 10
+Connect a LED with resistor from pin 10 to ground.
 
 */
 
@@ -29,19 +29,20 @@ func main() {
 	// Unmap gpio memory when done
 	defer rpio.Close()
 
-	//Creates the PWM Signal running on the pin, at 2KHz, with a 50 on 50 off cycle.
+	//Creates the PWM Signal running on the pin, at 2KHz, with a 0% PWM cycle.
 	pwm := rpio.CreateSofwarePWM(pin, 2000, 0, 32)
+	
 	pwm.Start()
+	defer pwm.Stop()
 	// five times smoothly fade in and out
 	for i := 0; i < 5; i++ {
 		for i := uint32(0); i < 32; i++ { // increasing brightness
 				pwm.SetDutyCycle(i, 32)
 				time.Sleep(time.Second/32)
 		}
-		for i := uint8(99); i > 0; i-=3 { // decreasing brightness
-				pwm.SetDutyCyclePercentage(i)
+		for i := uint32(32); i > 0; i-- { // decreasing brightness
+				pwm.SetDutyCycle(i, 32)
 				time.Sleep(time.Second/32)
 		}
 	}
-	pwm.Stop()
 }
