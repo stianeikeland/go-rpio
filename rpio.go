@@ -100,59 +100,6 @@ type SoftwarePWM struct {
 	state PwmState
 }
 
-//Create a Software PWM struct
-func CreateSofwarePWM(pin Pin, freq uint32, dutyLen uint32, cycleLen uint32) *SoftwarePWM{
-	//Set pin as Output
-	pin.Output()
-	return &SoftwarePWM{pin: pin, freq: freq, dutyLen: dutyLen, cycleLen: cycleLen}
-}
-
-func (swPwm *SoftwarePWM) SetDutyCycle(dutyLen uint32, cycleLen uint32){
-	swPwm.dutyLen = dutyLen
-	swPwm.cycleLen = cycleLen
-}
-
-func (swPwm *SoftwarePWM) SetDutyCyclePercentage(percentage uint8){
-	if percentage > 100{
-		percentage = 100
-	}
-	swPwm.dutyLen = uint32(percentage)
-	swPwm.cycleLen = 100
-}
-
-func (swPwm *SoftwarePWM) SetFreq(freq uint32){
-	swPwm.freq = freq
-}
-
-func (swPwm *SoftwarePWM) Start(){
-	swPwm.status = RUNNING
-	swPwm.pwmLoop()
-}
-
-func (swPwm *SoftwarePWM) Stop(){
-	swPwm.status = STOPPED
-	swPwm.pin.Write(Low)
-}
-
-func (swPwm *SoftwarePWM) pwmLoop(){
-	go func(){
-		var sleepInterval time.Duration
-		for swPwm.status == RUNNING {
-			sleepInterval = time.Second / time.Duration(swPwm.freq)
-			if swPwm.state == OFF {
-				swPwm.pin.Write(High)
-				swPwm.state = ON
-				sleepInterval = sleepInterval * time.Duration(swPwm.dutyLen)
-			} else {
-				swPwm.pin.Write(Low)
-				swPwm.state = OFF
-				sleepInterval = sleepInterval * time.Duration(swPwm.cycleLen - swPwm.dutyLen)
-			}
-			time.Sleep(sleepInterval)
-		}
-	}()
-}
-
 // Memory offsets for gpio, see the spec for more details
 const (
 	bcm2835Base = 0x20000000
@@ -619,6 +566,67 @@ func StartPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
 	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg] | pwen<<8 | pwen
+}
+
+//Create a Software PWM struct
+func CreateSofwarePWM(pin Pin, freq uint32, dutyLen uint32, cycleLen uint32) *SoftwarePWM{
+	//Set pin as Output
+	pin.Output()
+	return &SoftwarePWM{pin: pin, freq: freq, dutyLen: dutyLen, cycleLen: cycleLen}
+}
+
+//Sets the duty cycle for the software PWM
+func (swPwm *SoftwarePWM) SetDutyCycle(dutyLen uint32, cycleLen uint32){
+	swPwm.dutyLen = dutyLen
+	swPwm.cycleLen = cycleLen
+}
+
+//Sets the duty cycle percentage of 100 for the sofware PWM
+func (swPwm *SoftwarePWM) SetDutyCyclePercentage(percentage uint8){
+	if percentage > 100{
+		percentage = 100
+	}
+	swPwm.dutyLen = uint32(percentage)
+	swPwm.cycleLen = 100
+}
+
+//Sets the frequency of the software PWM
+func (swPwm *SoftwarePWM) SetFreq(freq uint32){
+	swPwm.freq = freq
+}
+
+//Starts the software PWM
+func (swPwm *SoftwarePWM) Start(){
+	swPwm.status = RUNNING
+	swPwm.pwmLoop()
+}
+
+//Stops the software PWM
+func (swPwm *SoftwarePWM) Stop(){
+	swPwm.status = STOPPED
+	swPwm.pin.Write(Low)
+}
+
+
+//Internal PWM execution loop
+func (swPwm *SoftwarePWM) pwmLoop(){
+	go func(){
+		var sleepInterval time.Duration
+		for swPwm.status == RUNNING {
+			//sleepInterval is the basic unit of time between pwm 'ticks'
+			sleepInterval = time.Second / time.Duration(swPwm.freq)
+			if swPwm.state == OFF {
+				swPwm.pin.Write(High)
+				swPwm.state = ON
+				sleepInterval = sleepInterval * time.Duration(swPwm.dutyLen)
+			} else {
+				swPwm.pin.Write(Low)
+				swPwm.state = OFF
+				sleepInterval = sleepInterval * time.Duration(swPwm.cycleLen - swPwm.dutyLen)
+			}
+			time.Sleep(sleepInterval)
+		}
+	}()
 }
 
 // Open and memory map GPIO memory range from /dev/mem .
