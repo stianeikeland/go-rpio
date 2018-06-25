@@ -10,6 +10,7 @@ Connect a LED with resistor from pin 19 to ground.
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -37,7 +38,7 @@ func main() {
 				pwm.SetDutyCycle(i, 32)
 				time.Sleep(time.Second/32)
 		}
-		for i := uint32(32); i > 0; i-=3 { // decreasing brightness
+		for i := uint8(99); i > 0; i-=3 { // decreasing brightness
 				pwm.SetDutyCyclePercentage(i)
 				time.Sleep(time.Second/32)
 		}
