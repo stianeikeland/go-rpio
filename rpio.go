@@ -79,16 +79,16 @@ type State uint8
 type Pull uint8
 type Edge uint8
 
-type PwmStatus uint
+type PwmStatus uint8
 const (
-	STOPPED status = 0
-	RUNNING status = 1
+	STOPPED PwmStatus = 0
+	RUNNING PwmStatus = 1
 )
 
-type PwmState uint
+type PwmState uint8
 const (
-	OFF status = 0
-	ON status = 1
+	OFF PwmState = 0
+	ON PwmState = 1
 )
 
 type SoftwarePWM struct {
@@ -107,39 +107,49 @@ func CreateSofwarePWM(pin Pin, freq uint32, dutyLen uint32, cycleLen uint32) *So
 	return &SoftwarePWM{pin: pin, freq: freq, dutyLen: dutyLen, cycleLen: cycleLen}
 }
 
-func (swPwm SoftwarePWM) SetDutyCycle(dutyLen uint32, cycleLen uint32){
+func (swPwm *SoftwarePWM) SetDutyCycle(dutyLen uint32, cycleLen uint32){
 	swPwm.dutyLen = dutyLen
 	swPwm.cycleLen = cycleLen
 }
 
-func (swPwm SoftwarePWM) SetFreq(freq uint32){
+func (swPwm *SoftwarePWM) SetDutyCyclePercentage(percentage uint8){
+	if percentage > 100{
+		percentage = 100
+	}
+	swPwm.dutyLen = uint32(percentage)
+	swPwm.cycleLen = 100
+}
+
+func (swPwm *SoftwarePWM) SetFreq(freq uint32){
 	swPwm.freq = freq
 }
 
-func (swPwm SoftwarePWM) Start(){
+func (swPwm *SoftwarePWM) Start(){
 	swPwm.status = RUNNING
 	swPwm.pwmLoop()
 }
 
-func (swPwm SoftwarePWM) Stop(){
+func (swPwm *SoftwarePWM) Stop(){
 	swPwm.status = STOPPED
 }
 
-func (swPwm SoftwarePWM) pwmLoop(){
+func (swPwm *SoftwarePWM) pwmLoop(){
 	go func(){
+		var sleepInterval time.Duration
 		for swPwm.status == RUNNING {
-			sleepInterval := time.Second / swPwm.freq
-			if(swPwm.state == OFF){
+			sleepInterval = time.Second / time.Duration(swPwm.freq)
+			if swPwm.state == OFF {
 				swPwm.pin.Write(High)
 				swPwm.state = ON
-				sleepInterval * dutyLen
-			}else{
+				sleepInterval = sleepInterval * time.Duration(swPwm.dutyLen)
+			} else {
 				swPwm.pin.Write(Low)
 				swPwm.state = OFF
-				sleepInterval * (cycleLen - dutyLen)
+				sleepInterval = sleepInterval * time.Duration(swPwm.cycleLen - swPwm.dutyLen)
 			}
 			time.Sleep(sleepInterval)
 		}
+		swPwm.pin.Write(Low)
 	}()
 }
 
