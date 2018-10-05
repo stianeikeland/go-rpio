@@ -1,14 +1,17 @@
-// SPI functionality is implemented here
 package rpio
 
 import (
 	"errors"
 )
 
+type SpiDev int
+
+// SPI devices.
+// Only SPI0 supported for now.
 const (
-	SPI0 = iota // only SPI0 supported for now
-	SPI1        // aux
-	SPI2        // aux
+	Spi0 SpiDev = iota
+	Spi1        // aux
+	Spi2        // aux
 )
 
 const (
@@ -21,10 +24,16 @@ var (
 	SpiMapError = errors.New("SPI registers not mapped correctly - are you root?")
 )
 
-// Sets SPI pins of given device to SPI mode
-// (CE0, CE1, [CE2], SCLK, MOSI, MISO).
+// Sets all pins of given SPI device to SPI mode
+//  dev\pin | CE0 | CE1 | CE2 | SCLK | MOSI | MISO |
+//  Spi0    |   7 |   8 |   - |    9 |   10 |   11 |
+//  Spi1    |  16 |  17 |  18 |   19 |   20 |   21 |
+//  Spi2    |  40 |  41 |  42 |   43 |   44 |   45 |
+//
 // It also resets SPI control register.
-func SpiBegin(dev int) error {
+//
+// Note that you should disable SPI interface in raspi-config first!
+func SpiBegin(dev SpiDev) error {
 	spiMem[csReg] = 0 // reset spi settings to default
 	if spiMem[csReg] == 0 {
 		// this should not read only zeroes after reset -> mem map failed
@@ -40,8 +49,8 @@ func SpiBegin(dev int) error {
 	return nil
 }
 
-// Sets SPI pins of given device to default (Input) mode.
-func SpiEnd(dev int) {
+// Sets SPI pins of given device to default (Input) mode. See SpiBegin.
+func SpiEnd(dev SpiDev) {
 	var pins = getSpiPins(dev)
 	for _, pin := range pins {
 		pin.Mode(Input)
@@ -122,8 +131,8 @@ func SpiExchange(data []byte) {
 }
 
 // set spi clock divider value
-func setSpiDiv(cdiv uint32) {
-	const cdivMask = 1<<16 - 1 - 1 // cdiv have 16 bits and must be odd (for some reason)
+func setSpiDiv(div uint32) {
+	const divMask = 1<<16 - 1 - 1 // cdiv have 16 bits and must be odd (for some reason)
 	spiMem[clkDivReg] = div & divMask
 }
 
@@ -133,14 +142,14 @@ func clearSpiTxRxFifo() {
 	spiMem[csReg] |= clearTxRx
 }
 
-func getSpiPins(dev int) []Pin {
+func getSpiPins(dev SpiDev) []Pin {
 	switch dev {
-	case SPI0:
+	case Spi0:
 		return []Pin{7, 8, 9, 10, 11}
 		// ommit 35, 36, 37, 38, 39 - only one set of SPI0 can be set in Spi mode at a time
-	case SPI1:
+	case Spi1:
 		return []Pin{16, 17, 18, 19, 20, 21}
-	case SPI2:
+	case Spi2:
 		return []Pin{40, 41, 42, 43, 44, 45}
 	default:
 		return []Pin{}

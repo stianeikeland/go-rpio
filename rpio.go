@@ -8,9 +8,13 @@ Supports simple operations such as:
 	- Pin read (high/low)
 	- Pin edge detection (no/rise/fall/any)
 	- Pull up/down/off
-And clock/pwm related oparations:
+Also clock/pwm related oparations:
 	- Set Clock frequency
 	- Set Duty cycle
+And SPI oparations:
+	- SPI transmit/recieve/exchange bytes
+	- Chip select
+	- Set speed
 
 Example of use:
 
@@ -238,10 +242,12 @@ func (pin Pin) EdgeDetected() bool {
 	return EdgeDetected(pin)
 }
 
-// PinMode sets the mode (direction) of a given pin (Input, Output, Clock or Pwm)
+// PinMode sets the mode of a given pin (Input, Output, Clock, Pwm or Spi)
 //
 // Clock is possible only for pins 4, 5, 6, 20, 21.
 // Pwm is possible only for pins 12, 13, 18, 19.
+//
+// Spi mode should not be set by this directly, use SpiBegin instead.
 func PinMode(pin Pin, mode Mode) {
 
 	// Pin fsel register, 0 or 1 depending on bank
@@ -296,7 +302,7 @@ func PinMode(pin Pin, mode Mode) {
 	memlock.Lock()
 	defer memlock.Unlock()
 
-	const pinMask = 7 // 0b111 - pinmode is 3 bits
+	const pinMask = 7 // 111 - pinmode is 3 bits
 
 	gpioMem[fselReg] = (gpioMem[fselReg] &^ (pinMask << shift)) | (f << shift)
 }

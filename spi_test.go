@@ -2,15 +2,22 @@ package rpio
 
 import ()
 
-func Example_SPI() {
-	SpiBegin(SPI0) // BCM pins 7 to 11
+func ExampleSpiTransmit() {
+	SpiTransmit(0xFF)             // send single byte
+	SpiTransmit(0xDE, 0xAD, 0xBE) // send several bytes
 
-	SpiSpeed(144000) // 144kHz
-	SpiChipSelect(1) // CE1
+	data := []byte{'H', 'e', 'l', 'l', 'o', 0}
+	SpiTransmit(data...) // send slice of bytes
+}
 
-	SpiTransmit(0xFF)
-	SpiTransmit(0xDE, 0xAD)
-	SpiTransmit(data...)
+func ExampleSpiBegin() {
+	err := SpiBegin(Spi0) // pins 7 to 11
+	if err != nil {
+		panic(err)
+	}
 
-	SpiEnd(SPI0)
+	// any Spi functions must go there...
+	SpiTransmit(42)
+
+	SpiEnd(Spi0)
 }
