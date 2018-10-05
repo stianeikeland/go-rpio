@@ -68,12 +68,46 @@ func SpiSpeed(speed int) {
 
 // Select chip, one of 0, 1, 2
 // for selecting slave on CE0, CE1, or CE2 pin
-func SpiChipSelect(chip int) {
+func SpiChipSelect(chip uint8) {
 	const csMask = 3 // chip select has 2 bits
 
 	cs := uint32(chip & csMask)
 
 	spiMem[csReg] = spiMem[csReg]&^csMask | cs
+}
+
+// Sets polarity (0/1) of active chip select
+// default active=0
+func SpiChipSelectPolarity(chip uint8, polarity uint8) {
+	if chip > 2 {
+		return
+	}
+	cspol := uint32(1 << (21 + chip)) // bit 21, 22 or 23 depending on chip
+
+	if polarity == 0 { // chip select is active low
+		spiMem[csReg] &^= cspol
+	} else { // chip select is active hight
+		spiMem[csReg] |= cspol
+	}
+}
+
+// Set polarity (0/1) and phase (0/1) of spi clock
+// default polarity=0; phase=0
+func SpiMode(polarity uint8, phase uint8) {
+	const cpol = 1 << 3
+	const cpha = 1 << 2
+
+	if polarity == 0 { // Rest state of clock = low
+		spiMem[csReg] &^= cpol
+	} else { // Rest state of clock = high
+		spiMem[csReg] |= cpol
+	}
+
+	if phase == 0 { // First SCLK transition at middle of data bit
+		spiMem[csReg] &^= cpha
+	} else { // First SCLK transition at beginning of data bit
+		spiMem[csReg] |= cpha
+	}
 }
 
 // SpiTransmit takes one or more bytes and send them to slave.
