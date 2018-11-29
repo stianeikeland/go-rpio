@@ -71,6 +71,23 @@ rpio.Close()
 
 Also see example [examples/blinker/blinker.go](examples/blinker/blinker.go)
 
+### SPI
+
+#### setup/teardown
+  - `rpio.SpiBegin(rpio.Spi0)` has to be called first before using any Spi func. It will change pin modes to `Spi` and initialize default setting.
+  - `rpio.SpiEnd(rpio.Spi0)` should be called at the end, it will switch pin modes to `Input`.
+
+#### transferring data
+  - `rpio.SpiTransmit(byte)` or `rpio.SpiTransmit(bytes...)` will transmit byte or bytes to slave.
+  - `rpio.SpiReceive(n)` will return n bytes received from slave.
+  - `rpio.SpiExchange(buffer)` will simultaneously transmit data from the buffer to slave and data from slave to the same buffer in full duplex way.
+
+#### settings
+  - `rpio.SpiSpeed(hz)` will set transmit speed of SPI
+  - `rpio.SpiChipSelect(n)` will select chip/slave (ce0, ce1, or ce2) to which transferring will be done
+  - `rpio.SpiChipSelectPolarity(n, pol)` set chip select polarity (low enabled is used by default which usually works most of the time)
+  - `rpio.SpiMode(cpol, cpha)` set clock/communication mode (=combination of clock polarity and clock phase; cpol=0, cpha=0 is used by default which usually works most of the time)
+
 ## Other ##
 
 Currently, it supports basic functionality such as:
