@@ -8,9 +8,13 @@ Supports simple operations such as:
 	- Pin read (high/low)
 	- Pin edge detection (no/rise/fall/any)
 	- Pull up/down/off
-And clock/pwm related oparations:
+Also clock/pwm related oparations:
 	- Set Clock frequency
 	- Set Duty cycle
+And SPI oparations:
+	- SPI transmit/recieve/exchange bytes
+	- Chip select
+	- Set speed
 
 Example of use:
 
@@ -85,6 +89,7 @@ const (
 	gpioOffset  = 0x200000
 	clkOffset   = 0x101000
 	pwmOffset   = 0x20C000
+	spiOffset   = 0x204000
 
 	memLength = 4096
 )
@@ -93,6 +98,7 @@ var (
 	gpioBase int64
 	clkBase  int64
 	pwmBase  int64
+	spiBase  int64
 )
 
 func init() {
@@ -100,6 +106,7 @@ func init() {
 	gpioBase = base + gpioOffset
 	clkBase = base + clkOffset
 	pwmBase = base + pwmOffset
+	spiBase = base + spiOffset
 }
 
 // Pin mode, a pin can be set in Input or Output, Clock or Pwm mode
@@ -108,6 +115,7 @@ const (
 	Output
 	Clock
 	Pwm
+	Spi
 )
 
 // State of pin, High / Low
@@ -137,9 +145,11 @@ var (
 	gpioMem  []uint32
 	clkMem   []uint32
 	pwmMem   []uint32
+	spiMem   []uint32
 	gpioMem8 []uint8
 	clkMem8  []uint8
 	pwmMem8  []uint8
+	spiMem8  []uint8
 )
 
 // Set pin as Input
@@ -232,10 +242,12 @@ func (pin Pin) EdgeDetected() bool {
 	return EdgeDetected(pin)
 }
 
-// PinMode sets the mode (direction) of a given pin (Input, Output, Clock or Pwm)
+// PinMode sets the mode of a given pin (Input, Output, Clock, Pwm or Spi)
 //
 // Clock is possible only for pins 4, 5, 6, 20, 21.
 // Pwm is possible only for pins 12, 13, 18, 19.
+//
+// Spi mode should not be set by this directly, use SpiBegin instead.
 func PinMode(pin Pin, mode Mode) {
 
 	// Pin fsel register, 0 or 1 depending on bank
@@ -243,14 +255,17 @@ func PinMode(pin Pin, mode Mode) {
 	shift := (uint8(pin) % 10) * 3
 	f := uint32(0)
 
+	const in = 0   // 000
+	const out = 1  // 001
 	const alt0 = 4 // 100
+	const alt4 = 3 // 011
 	const alt5 = 2 // 010
 
 	switch mode {
 	case Input:
-		f = 0 // 000
+		f = in
 	case Output:
-		f = 1 // 001
+		f = out
 	case Clock:
 		switch pin {
 		case 4, 5, 6, 32, 34, 42, 43, 44:
@@ -269,12 +284,25 @@ func PinMode(pin Pin, mode Mode) {
 		default:
 			return
 		}
+	case Spi:
+		switch pin {
+		case 7, 8, 9, 10, 11: // SPI0
+			f = alt0
+		case 35, 36, 37, 38, 39: // SPI0
+			f = alt0
+		case 16, 17, 18, 19, 20, 21: // SPI1
+			f = alt4
+		case 40, 41, 42, 43, 44, 45: // SPI2
+			f = alt4
+		default:
+			return
+		}
 	}
 
 	memlock.Lock()
 	defer memlock.Unlock()
 
-	const pinMask = 7 // 0b111 - pinmode is 3 bits
+	const pinMask = 7 // 111 - pinmode is 3 bits
 
 	gpioMem[fselReg] = (gpioMem[fselReg] &^ (pinMask << shift)) | (f << shift)
 }
@@ -355,14 +383,14 @@ func DetectEdge(pin Pin, edge Edge) {
 	bit := uint32(1 << (p & 31))
 
 	if edge&RiseEdge > 0 { // set bit
-		gpioMem[renReg] = gpioMem[renReg] | bit
+		gpioMem[renReg] |= bit
 	} else { // clear bit
-		gpioMem[renReg] = gpioMem[renReg] &^ bit
+		gpioMem[renReg] &^= bit
 	}
 	if edge&FallEdge > 0 { // set bit
-		gpioMem[fenReg] = gpioMem[fenReg] | bit
+		gpioMem[fenReg] |= bit
 	} else { // clear bit
-		gpioMem[fenReg] = gpioMem[fenReg] &^ bit
+		gpioMem[fenReg] &^= bit
 	}
 
 	gpioMem[edsReg] = bit // to clear outdated detection
@@ -396,9 +424,9 @@ func PullMode(pin Pin, pull Pull) {
 
 	switch pull {
 	case PullDown, PullUp:
-		gpioMem[pullReg] = gpioMem[pullReg]&^3 | uint32(pull)
+		gpioMem[pullReg] |= uint32(pull)
 	case PullOff:
-		gpioMem[pullReg] = gpioMem[pullReg] &^ 3
+		gpioMem[pullReg] &^= 3
 	}
 
 	// Wait for value to clock in, this is ugly, sorry :(
@@ -409,7 +437,7 @@ func PullMode(pin Pin, pull Pull) {
 	// Wait for value to clock in
 	time.Sleep(time.Microsecond)
 
-	gpioMem[pullReg] = gpioMem[pullReg] &^ 3
+	gpioMem[pullReg] &^= 3
 	gpioMem[pullClkReg] = 0
 
 }
@@ -546,14 +574,14 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 func StopPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
-	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg] &^ (pwen<<8 | pwen)
+	pwmMem[pwmCtlReg] &^= pwen<<8 | pwen
 }
 
 // Start pwm for both channels
 func StartPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
-	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg] | pwen<<8 | pwen
+	pwmMem[pwmCtlReg] |= pwen<<8 | pwen
 }
 
 // Open and memory map GPIO memory range from /dev/mem .
@@ -593,6 +621,12 @@ func Open() (err error) {
 		return
 	}
 
+	// Memory map spi registers to slice
+	spiMem, spiMem8, err = memMap(file.Fd(), spiBase)
+	if err != nil {
+		return
+	}
+
 	return nil
 }
 
@@ -626,6 +660,9 @@ func Close() error {
 		return err
 	}
 	if err := syscall.Munmap(pwmMem8); err != nil {
+		return err
+	}
+	if err := syscall.Munmap(spiMem8); err != nil {
 		return err
 	}
 	return nil
