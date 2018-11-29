@@ -22,6 +22,7 @@ There's a tiny bit of additional information over at my [blog](https://blog.eike
 - 4.0.0 - Adds support for PWM and Clock modes, by @Drahoslav7
 - 4.1.0 - Adds support for edge detection, by @Drahoslav7
 - 4.2.0 - Faster write and toggle of output pins, by @Drahoslav7
+- 4.3.0 - Adds support for SPI, by @Drahoslav7
 
 ## Usage ##
 
