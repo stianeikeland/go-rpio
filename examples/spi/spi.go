@@ -7,7 +7,7 @@ SPI example
 package main
 
 import (
-	"../.."
+	"github.com/stianeikeland/go-rpio"
 	"fmt"
 )
 
