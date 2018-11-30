@@ -27,6 +27,12 @@ There's a tiny bit of additional information over at my [blog](https://blog.eike
 ## Usage ##
 
 ```go
+import "github.com/stianeikeland/go-rpio/v4"
+```
+
+If you're using an older go.mod incompatible you should instead use:
+
+```go
 import "github.com/stianeikeland/go-rpio"
 ```
 
