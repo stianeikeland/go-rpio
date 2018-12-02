@@ -1,6 +1,7 @@
 package rpio
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -13,6 +14,21 @@ func TestMain(m *testing.M) {
 	}
 	defer Close()
 	os.Exit(m.Run())
+}
+
+func TestInterrupt(t *testing.T) {
+	logIrqRegs(t)
+	EnableIRQs(1 << 49)
+	EnableIRQs(1 << 50)
+	EnableIRQs(1 << 51)
+	EnableIRQs(1 << 52)
+	logIrqRegs(t)
+	DisableIRQs(1 << 49)
+	DisableIRQs(1 << 50)
+	DisableIRQs(1 << 51)
+	DisableIRQs(1 << 52)
+	logIrqRegs(t)
+	EnableIRQs(irqsBackup)
 }
 
 func TestEvent(t *testing.T) {
@@ -118,6 +134,33 @@ func TestEvent(t *testing.T) {
 
 	})
 
+	// If this fr⁽eezes your pi,
+	// add `dtoverlay=gpio-no-irq` to `/boot/config.txt` and restart your pi,
+	// or run as root.
+	t.Run("multiple edges", func(t *testing.T) {
+		EnableIRQs(15 << 49) // all 4 gpio_int[]
+		logIrqRegs(t)
+		src.High()
+		pin.Detect(FallEdge)
+
+		logIrqRegs(t)
+
+		for i := 0; i < 10000; i++ {
+			time.Sleep(time.Millisecond)
+			src.High()
+			time.Sleep(time.Millisecond)
+			src.Low()
+		}
+		logIrqRegs(t)
+		if !pin.EdgeDetected() {
+			t.Errorf("Edge not detected")
+		}
+		logIrqRegs(t)
+		pin.Detect(NoEdge)
+		logIrqRegs(t)
+		EnableIRQs(irqsBackup)
+	})
+
 }
 
 func BenchmarkGpio(b *testing.B) {
@@ -190,4 +233,13 @@ func BenchmarkGpio(b *testing.B) {
 		})
 	})
 
+}
+
+func logIrqRegs(t *testing.T) {
+	fmt.Printf("PENDING(% X) FIQ(% X) ENAB(% X) DISAB(% X)\n",
+		intrMem8[0x200:0x20C],
+		intrMem8[0x20C:0x210],
+		intrMem8[0x210:0x21C],
+		intrMem8[0x21C:0x228],
+	)
 }

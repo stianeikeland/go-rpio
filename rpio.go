@@ -90,6 +90,7 @@ const (
 	clkOffset   = 0x101000
 	pwmOffset   = 0x20C000
 	spiOffset   = 0x204000
+	intrOffset  = 0x00B000
 
 	memLength = 4096
 )
@@ -99,6 +100,9 @@ var (
 	clkBase  int64
 	pwmBase  int64
 	spiBase  int64
+	intrBase int64
+
+	irqsBackup uint64
 )
 
 func init() {
@@ -107,6 +111,7 @@ func init() {
 	clkBase = base + clkOffset
 	pwmBase = base + pwmOffset
 	spiBase = base + spiOffset
+	intrBase = base + intrOffset
 }
 
 // Pin mode, a pin can be set in Input or Output, Clock or Pwm mode
@@ -146,10 +151,12 @@ var (
 	clkMem   []uint32
 	pwmMem   []uint32
 	spiMem   []uint32
+	intrMem  []uint32
 	gpioMem8 []uint8
 	clkMem8  []uint8
 	pwmMem8  []uint8
 	spiMem8  []uint8
+	intrMem8 []uint8
 )
 
 // Set pin as Input
@@ -365,12 +372,20 @@ func TogglePin(pin Pin) {
 //
 // Note that using this function might conflict with the same functionality of other gpio library.
 //
-// It also clears previously detected event of this pin if any.
+// It also clears previously detected event of this pin if there was any.
 //
 // Note that call with RiseEdge will disable previously set FallEdge detection and vice versa.
 // You have to call with AnyEdge, to enable detection for both edges.
 // To disable previously enabled detection call it with NoEdge.
+//
+// WARNING: this might make your Pi unresponsive, if this happens, you should either run the code as root,
+// or add `dtoverlay=gpio-no-irq` to `/boot/config.txt` and restart your pi,
 func DetectEdge(pin Pin, edge Edge) {
+	if edge != NoEdge {
+		// disable GPIO event interruption to prevent freezing in some cases
+		DisableIRQs(1<<49 | 1<<52) // gpio_int[0] and gpio_int[3]
+	}
+
 	p := uint8(pin)
 
 	// Rising edge detect enable register (19/20 depending on bank)
@@ -584,6 +599,32 @@ func StartPwm() {
 	pwmMem[pwmCtlReg] |= pwen<<8 | pwen
 }
 
+// Enables given IRQs (by setting bit to 1 at intended position).
+// See 'ARM peripherals interrupts table' in pheripherals datasheet.
+// WARNING: you can corrupt your system, only use this if you know what you are doing.
+func EnableIRQs(irqs uint64) {
+	const irqEnable1 = 0x210 / 4
+	const irqEnable2 = 0x214 / 4
+	intrMem[irqEnable1] = uint32(irqs)       // IRQ 0..31
+	intrMem[irqEnable2] = uint32(irqs >> 32) // IRQ 32..63
+}
+
+// Disables given IRQs (by setting bit to 1 at intended position).
+// See 'ARM peripherals interrupts table' in pheripherals datasheet.
+// WARNING: you can corrupt your system, only use this if you know what you are doing.
+func DisableIRQs(irqs uint64) {
+	const irqDisable1 = 0x21C / 4
+	const irqDisable2 = 0x220 / 4
+	intrMem[irqDisable1] = uint32(irqs)       // IRQ 0..31
+	intrMem[irqDisable2] = uint32(irqs >> 32) // IRQ 32..63
+}
+
+func backupIRQs() {
+	const irqEnable1 = 0x210 / 4
+	const irqEnable2 = 0x214 / 4
+	irqsBackup = uint64(intrMem[irqEnable2])<<32 | uint64(intrMem[irqEnable1])
+}
+
 // Open and memory map GPIO memory range from /dev/mem .
 // Some reflection magic is used to convert it to a unsafe []uint32 pointer
 func Open() (err error) {
@@ -627,6 +668,14 @@ func Open() (err error) {
 		return
 	}
 
+	// Memory map interruption registers to slice
+	intrMem, intrMem8, err = memMap(file.Fd(), intrBase)
+	if err != nil {
+		return
+	}
+
+	backupIRQs() // back up enabled IRQs, to restore it later
+
 	return nil
 }
 
@@ -651,19 +700,14 @@ func memMap(fd uintptr, base int64) (mem []uint32, mem8 []byte, err error) {
 
 // Close unmaps GPIO memory
 func Close() error {
+	EnableIRQs(irqsBackup) // Return IRQs to state where it was before - just to be nice
+
 	memlock.Lock()
 	defer memlock.Unlock()
-	if err := syscall.Munmap(gpioMem8); err != nil {
-		return err
-	}
-	if err := syscall.Munmap(clkMem8); err != nil {
-		return err
-	}
-	if err := syscall.Munmap(pwmMem8); err != nil {
-		return err
-	}
-	if err := syscall.Munmap(spiMem8); err != nil {
-		return err
+	for _, mem8 := range [][]uint8{gpioMem8, clkMem8, pwmMem8, spiMem8, intrMem8} {
+		if err := syscall.Munmap(mem8); err != nil {
+			return err
+		}
 	}
 	return nil
 }
