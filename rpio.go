@@ -159,32 +159,32 @@ var (
 	intrMem8 []uint8
 )
 
-// Set pin as Input
+// Input: Set pin as Input
 func (pin Pin) Input() {
 	PinMode(pin, Input)
 }
 
-// Set pin as Output
+// Output: Set pin as Output
 func (pin Pin) Output() {
 	PinMode(pin, Output)
 }
 
-// Set pin as Clock
+// Clock: Set pin as Clock
 func (pin Pin) Clock() {
 	PinMode(pin, Clock)
 }
 
-// Set pin as Pwm
+// Pwm: Set pin as Pwm
 func (pin Pin) Pwm() {
 	PinMode(pin, Pwm)
 }
 
-// Set pin High
+// High: Set pin High
 func (pin Pin) High() {
 	WritePin(pin, High)
 }
 
-// Set pin Low
+// Low: Set pin Low
 func (pin Pin) Low() {
 	WritePin(pin, Low)
 }
@@ -194,22 +194,22 @@ func (pin Pin) Toggle() {
 	TogglePin(pin)
 }
 
-// Set frequency of Clock or Pwm pin (see doc of SetFreq)
+// Freq: Set frequency of Clock or Pwm pin (see doc of SetFreq)
 func (pin Pin) Freq(freq int) {
 	SetFreq(pin, freq)
 }
 
-// Set duty cycle for Pwm pin (see doc of SetDutyCycle)
+// DutyCycle: Set duty cycle for Pwm pin (see doc of SetDutyCycle)
 func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
 	SetDutyCycle(pin, dutyLen, cycleLen)
 }
 
-// Set pin Mode
+// Mode: Set pin Mode
 func (pin Pin) Mode(mode Mode) {
 	PinMode(pin, mode)
 }
 
-// Set pin state (high/low)
+// Write: Set pin state (high/low)
 func (pin Pin) Write(state State) {
 	WritePin(pin, state)
 }
@@ -219,32 +219,32 @@ func (pin Pin) Read() State {
 	return ReadPin(pin)
 }
 
-// Set a given pull up/down mode
+// Pull: Set a given pull up/down mode
 func (pin Pin) Pull(pull Pull) {
 	PullMode(pin, pull)
 }
 
-// Pull up pin
+// PullUp: Pull up pin
 func (pin Pin) PullUp() {
 	PullMode(pin, PullUp)
 }
 
-// Pull down pin
+// PullDown: Pull down pin
 func (pin Pin) PullDown() {
 	PullMode(pin, PullDown)
 }
 
-// Disable pullup/down on pin
+// PullOff: Disable pullup/down on pin
 func (pin Pin) PullOff() {
 	PullMode(pin, PullOff)
 }
 
-// Enable edge event detection on pin
+// Detect: Enable edge event detection on pin
 func (pin Pin) Detect(edge Edge) {
 	DetectEdge(pin, edge)
 }
 
-// Check edge event on pin
+// EdgeDetected checks edge event on pin
 func (pin Pin) EdgeDetected() bool {
 	return EdgeDetected(pin)
 }
@@ -334,7 +334,7 @@ func WritePin(pin Pin, state State) {
 	memlock.Unlock() // not deferring saves ~600ns
 }
 
-// Read the state of a pin
+// ReadPin reads the state of a pin
 func ReadPin(pin Pin) State {
 	// Input level register offset (13 / 14 depending on bank)
 	levelReg := uint8(pin)/32 + 13
@@ -346,7 +346,7 @@ func ReadPin(pin Pin) State {
 	return Low
 }
 
-// Toggle a pin state (high -> low -> high)
+// TogglePin: Toggle a pin state (high -> low -> high)
 func TogglePin(pin Pin) {
 	p := uint8(pin)
 
@@ -366,7 +366,7 @@ func TogglePin(pin Pin) {
 	memlock.Unlock()
 }
 
-// Enable edge event detection on pin.
+// DetectEdge: Enable edge event detection on pin.
 //
 // Combine with pin.EdgeDetected() to check whether event occured.
 //
@@ -411,7 +411,7 @@ func DetectEdge(pin Pin, edge Edge) {
 	gpioMem[edsReg] = bit // to clear outdated detection
 }
 
-// Check whether edge event occured since last call
+// EdgeDetected checks whether edge event occured since last call
 // or since detection was enabled
 //
 // There is no way (yet) to handle interruption caused by edge event, you have to use polling.
@@ -457,7 +457,7 @@ func PullMode(pin Pin, pull Pull) {
 
 }
 
-// Set clock speed for given pin in Clock or Pwm mode
+// SetFreq: Set clock speed for given pin in Clock or Pwm mode
 //
 // Param freq should be in range 4688Hz - 19.2MHz to prevent unexpected behavior,
 // however output frequency of Pwm pins can be further adjusted with SetDutyCycle.
@@ -531,7 +531,7 @@ func SetFreq(pin Pin, freq int) {
 	// NOTE without root permission this changes will simply do nothing successfully
 }
 
-// Set cycle length (range) and duty length (data) for Pwm pin in M/S mode
+// SetDutyCycle: Set cycle length (range) and duty length (data) for Pwm pin in M/S mode
 //
 //   |<- duty ->|
 //    __________
@@ -585,21 +585,21 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 	// NOTE without root permission this changes will simply do nothing successfully
 }
 
-// Stop pwm for both channels
+// StopPwm: Stop pwm for both channels
 func StopPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
 	pwmMem[pwmCtlReg] &^= pwen<<8 | pwen
 }
 
-// Start pwm for both channels
+// StartPwm starts pwm for both channels
 func StartPwm() {
 	const pwmCtlReg = 0
 	const pwen = 1
 	pwmMem[pwmCtlReg] |= pwen<<8 | pwen
 }
 
-// Enables given IRQs (by setting bit to 1 at intended position).
+// EnableIRQs: Enables given IRQs (by setting bit to 1 at intended position).
 // See 'ARM peripherals interrupts table' in pheripherals datasheet.
 // WARNING: you can corrupt your system, only use this if you know what you are doing.
 func EnableIRQs(irqs uint64) {
@@ -609,7 +609,7 @@ func EnableIRQs(irqs uint64) {
 	intrMem[irqEnable2] = uint32(irqs >> 32) // IRQ 32..63
 }
 
-// Disables given IRQs (by setting bit to 1 at intended position).
+// DisableIRQs: Disables given IRQs (by setting bit to 1 at intended position).
 // See 'ARM peripherals interrupts table' in pheripherals datasheet.
 // WARNING: you can corrupt your system, only use this if you know what you are doing.
 func DisableIRQs(irqs uint64) {

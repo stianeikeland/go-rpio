@@ -24,7 +24,7 @@ var (
 	SpiMapError = errors.New("SPI registers not mapped correctly - are you root?")
 )
 
-// Sets all pins of given SPI device to SPI mode
+// SpiBegin: Sets all pins of given SPI device to SPI mode
 //  dev\pin | CE0 | CE1 | CE2 | SCLK | MOSI | MISO |
 //  Spi0    |   7 |   8 |   - |    9 |   10 |   11 |
 //  Spi1    |  16 |  17 |  18 |   19 |   20 |   21 |
@@ -49,7 +49,7 @@ func SpiBegin(dev SpiDev) error {
 	return nil
 }
 
-// Sets SPI pins of given device to default (Input) mode. See SpiBegin.
+// SpiEnd: Sets SPI pins of given device to default (Input) mode. See SpiBegin.
 func SpiEnd(dev SpiDev) {
 	var pins = getSpiPins(dev)
 	for _, pin := range pins {
@@ -57,7 +57,7 @@ func SpiEnd(dev SpiDev) {
 	}
 }
 
-// Set (maximal) speed [Hz] of SPI clock.
+// SpiSpeed: Set (maximal) speed [Hz] of SPI clock.
 // Param speed may be as big as 125MHz in theory, but
 // only values up to 31.25MHz are considered relayable.
 func SpiSpeed(speed int) {
@@ -66,7 +66,7 @@ func SpiSpeed(speed int) {
 	setSpiDiv(cdiv)
 }
 
-// Select chip, one of 0, 1, 2
+// SpiChipSelect: Select chip, one of 0, 1, 2
 // for selecting slave on CE0, CE1, or CE2 pin
 func SpiChipSelect(chip uint8) {
 	const csMask = 3 // chip select has 2 bits
@@ -76,7 +76,7 @@ func SpiChipSelect(chip uint8) {
 	spiMem[csReg] = spiMem[csReg]&^csMask | cs
 }
 
-// Sets polarity (0/1) of active chip select
+// SpiChipSelectPolarity: Sets polarity (0/1) of active chip select
 // default active=0
 func SpiChipSelectPolarity(chip uint8, polarity uint8) {
 	if chip > 2 {
@@ -91,7 +91,7 @@ func SpiChipSelectPolarity(chip uint8, polarity uint8) {
 	}
 }
 
-// Set polarity (0/1) and phase (0/1) of spi clock
+// SpiMode: Set polarity (0/1) and phase (0/1) of spi clock
 // default polarity=0; phase=0
 func SpiMode(polarity uint8, phase uint8) {
 	const cpol = 1 << 3
@@ -127,7 +127,7 @@ func SpiReceive(n int) []byte {
 	return data
 }
 
-// Transmit all bytes in data to slave
+// SpiExchange: Transmit all bytes in data to slave
 // and simultaneously receives bytes from slave to data.
 //
 // If you want to only send or only receive, use SpiTransmit/SpiReceive
