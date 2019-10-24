@@ -69,6 +69,7 @@ package rpio
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"os"
 	"reflect"
 	"sync"
@@ -714,23 +715,43 @@ func Close() error {
 
 // Read /proc/device-tree/soc/ranges and determine the base address.
 // Use the default Raspberry Pi 1 base address if this fails.
-func getBase() (base int64) {
-	base = bcm2835Base
+func readBase(offset int64) (int64, error) {
 	ranges, err := os.Open("/proc/device-tree/soc/ranges")
 	defer ranges.Close()
 	if err != nil {
-		return
+		return 0, err
 	}
 	b := make([]byte, 4)
-	n, err := ranges.ReadAt(b, 4)
+	n, err := ranges.ReadAt(b, offset)
 	if n != 4 || err != nil {
-		return
+		return 0, err
 	}
 	buf := bytes.NewReader(b)
 	var out uint32
 	err = binary.Read(buf, binary.BigEndian, &out)
 	if err != nil {
-		return
+		return 0, err
 	}
-	return int64(out)
+
+	if out == 0 {
+		return 0, errors.New("rpio: GPIO base address not found")
+	}
+	return int64(out), nil
+}
+
+func getBase() int64 {
+	// Pi 2 & 3 GPIO base address is at offset 4
+	b, err := readBase(4)
+	if err == nil {
+		return b
+	}
+
+	// Pi 4 GPIO base address is as offset 8
+	b, err = readBase(8)
+	if err == nil {
+		return b
+	}
+
+	// Default to Pi 1
+	return int64(bcm2835Base)
 }
