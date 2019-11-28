@@ -98,7 +98,7 @@ const (
 	memLength = 4096
 )
 
-// BCM 2711 has a differnet mechanism for pin pull-up/pull-down/enable
+// BCM 2711 has a different mechanism for pull-up/pull-down/enable
 const (
 	GPPUPPDN0 = 57        // Pin pull-up/down for pins 15:0 
 	GPPUPPDN1 = 58        // Pin pull-up/down for pins 31:16 
@@ -145,6 +145,7 @@ const (
 	PullOff Pull = iota
 	PullDown
 	PullUp
+	PullNone
 )
 
 // Edge events
@@ -252,7 +253,7 @@ func (pin Pin) PullOff() {
 
 func (pin Pin) ReadPull() Pull {
 	if !isBCM2711() {
-		return PullOff	// TODO: Can you read pull state on other Pi boards?
+		return PullNone	// Can't read pull-up/pull-down state on other Pi boards
 	}
 
 	reg := GPPUPPDN0 + (uint8(pin) >> 4)
@@ -265,7 +266,7 @@ func (pin Pin) ReadPull() Pull {
 	case 2:
 		return PullDown
 	default:
-		return PullOff
+		return PullNone	// Invalid
 	}
 }
 
