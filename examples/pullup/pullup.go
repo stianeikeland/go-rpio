@@ -23,10 +23,10 @@ func main() {
 
 	// Pull up and read value
 	pin.PullUp()
-	fmt.Printf("PullUp: %d\n", pin.Read())
+	fmt.Printf("PullUp: %d, %d\n", pin.Read(), pin.ReadPull())
 
 	// Pull down and read value
 	pin.PullDown()
-	fmt.Printf("PullDown: %d\n", pin.Read())
+	fmt.Printf("PullDown: %d, %d\n", pin.Read(), pin.ReadPull())
 
 }
