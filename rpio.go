@@ -3,7 +3,7 @@ Package rpio provides GPIO access on the Raspberry PI without any need
 for external c libraries (eg. WiringPi or BCM2835).
 
 Supports simple operations such as:
-	- Pin mode/direction (input/output/clock/pwm)
+	- Pin mode/direction (input/output/clock/pwm,alt0,alt1,alt2,alt3,alt4,alt5)
 	- Pin write (high/low)
 	- Pin read (high/low)
 	- Pin edge detection (no/rise/fall/any)
@@ -121,6 +121,12 @@ const (
 	Clock
 	Pwm
 	Spi
+	Alt0
+	Alt1
+	Alt2
+	Alt3
+	Alt4
+	Alt5
 )
 
 // State of pin, High / Low
@@ -265,6 +271,9 @@ func PinMode(pin Pin, mode Mode) {
 	const in = 0   // 000
 	const out = 1  // 001
 	const alt0 = 4 // 100
+	const alt1 = 5 // 101
+	const alt2 = 6 // 110
+	const alt3 = 7 // 111
 	const alt4 = 3 // 011
 	const alt5 = 2 // 010
 
@@ -304,6 +313,18 @@ func PinMode(pin Pin, mode Mode) {
 		default:
 			return
 		}
+	case Alt0:
+		f = alt0
+	case Alt1:
+		f = alt1
+	case Alt2:
+		f = alt2
+	case Alt3:
+		f = alt3
+	case Alt4:
+		f = alt4
+	case Alt5:
+		f = alt5
 	}
 
 	memlock.Lock()
