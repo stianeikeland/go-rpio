@@ -75,6 +75,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+	"io/ioutil"
+	"fmt"
 )
 
 type Mode uint8
@@ -625,6 +627,38 @@ func backupIRQs() {
 	irqsBackup = uint64(intrMem[irqEnable2])<<32 | uint64(intrMem[irqEnable1])
 }
 
+var pin_to_gpio_rev1 = [26]int {-1, -1, 0, -1, 1, -1, 4, 14, -1, 15, 17, 18, 21, -1, 22, 23, -1, 24, 10, -1, 9, 25, 11, 8, -1, 7};
+var pin_to_gpio_rev2 = [40]int {-1, -1, 2, -1, 3, -1, 4, 14, -1, 15, 17, 18, 27, -1, 22, 23, -1, 24, 10, -1, 9, 25, 11, 8, -1, 7, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+var pin_to_gpio_rev3 = [40]int {-1, -1, 2, -1, 3, -1, 4, 14, -1, 15, 17, 18, 27, -1, 22, 23, -1, 24, 10, -1, 9, 25, 11, 8, -1, 7, -1, -1, 5, -1, 6, 12, 13, -1, 19, 16, 26, 20, -1, 21 };
+
+var pin_to_gpio []int = nil;
+func initGPIOconversion () (error) {
+	file, err := os.Open("/sys/firmware/devicetree/base/model")
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	model, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	switch string(bytes.TrimRight(model, "\000")) {
+	case "Raspberry Pi Model B Rev 1" :
+		pin_to_gpio = pin_to_gpio_rev1[0:26];
+	case "Raspberry Pi Model B Rev 2" :
+		pin_to_gpio = pin_to_gpio_rev2[0:40];
+	case "Raspberry Pi Model A Rev 2" :
+		pin_to_gpio = pin_to_gpio_rev2[0:40];
+		default :
+		pin_to_gpio = pin_to_gpio_rev3[0:40];
+	}
+
+	return nil
+}
+
 // Open and memory map GPIO memory range from /dev/mem .
 // Some reflection magic is used to convert it to a unsafe []uint32 pointer
 func Open() (err error) {
@@ -676,6 +710,7 @@ func Open() (err error) {
 
 	backupIRQs() // back up enabled IRQs, to restore it later
 
+	initGPIOconversion()
 	return nil
 }
 
@@ -733,4 +768,13 @@ func getBase() (base int64) {
 		return
 	}
 	return int64(out)
+}
+
+// Convert GPIO number from physical PIN to BCM convention
+func GetBoardPin(board_pin int) (Pin, error) {
+	if board_pin < 1 || len(pin_to_gpio) < board_pin || pin_to_gpio[board_pin - 1] == -1 {
+		return Pin(0xff), fmt.Errorf("Pin %d is not wired", board_pin)
+	}
+
+	return Pin(pin_to_gpio[board_pin - 1]), nil
 }

@@ -61,6 +61,16 @@ pin.Mode(rpio.Output)   // Alternative syntax
 pin.Write(rpio.High)    // Alternative syntax
 ```
 
+If you prefer using physical pin numbers instead of BCM notation, call GetBoardPin():
+
+```go
+// Physical pin 19 is mapped to BCM pin 10, so this two lines are quivalent
+
+pin := rpio.GetBoardPin(19) 
+pin := rpio.Pin(10)
+
+```
+
 Pull up/down/off can be set using:
 
 ```go
