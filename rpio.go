@@ -430,7 +430,7 @@ func EdgeDetected(pin Pin) bool {
 
 func PullMode(pin Pin, pull Pull) {
 	// BCM2711  - offset 60 has model of BCM, BCM2711 = 0x6770696f
-	if(gpioMem[60] == 0x6770696f) {
+	if(gpioMem[62] == 0x6770696f) {
 		// 2711 reverses up/down sense
 		// Based on code from https://github.com/warthog618/gpio
 		switch pull {
