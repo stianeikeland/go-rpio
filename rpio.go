@@ -429,32 +429,51 @@ func EdgeDetected(pin Pin) bool {
 }
 
 func PullMode(pin Pin, pull Pull) {
-	// Pull up/down/off register has offset 38 / 39, pull is 37
-	pullClkReg := pin/32 + 38
-	pullReg := 37
-	shift := pin % 32
+	// BCM2711  - offset 60 has model of BCM, BCM2711 = 0x6770696f
+	if(gpioMem[60] == 0x6770696f) {
+		// 2711 reverses up/down sense
+		// Based on code from https://github.com/warthog618/gpio
+		switch pull {
+			case PullUp:
+				pull = PullDown
+			case PullDown:
+				pull = PullUp
+		}
+		shift := uint(pin&0x0f) << 1
 
-	memlock.Lock()
-	defer memlock.Unlock()
+		memlock.Lock()
+		defer memlock.Unlock()
 
-	switch pull {
-	case PullDown, PullUp:
-		gpioMem[pullReg] |= uint32(pull)
-	case PullOff:
+		pullReg := 57 + pin/16
+		gpioMem[pullReg] = gpioMem[pullReg] &^ (3 << shift) | uint32(pull)<<shift
+	} else {
+		// Legacy
+		// Pull up/down/off register has offset 38 / 39, pull is 37
+		pullClkReg := pin/32 + 38
+		pullReg := 37
+		shift := pin % 32
+
+		memlock.Lock()
+		defer memlock.Unlock()
+
+		switch pull {
+		case PullDown, PullUp:
+			gpioMem[pullReg] |= uint32(pull)
+		case PullOff:
+			gpioMem[pullReg] &^= 3
+		}
+
+		// Wait for value to clock in, this is ugly, sorry :(
+		time.Sleep(time.Microsecond)
+
+		gpioMem[pullClkReg] = 1 << shift
+
+		// Wait for value to clock in
+		time.Sleep(time.Microsecond)
+
 		gpioMem[pullReg] &^= 3
+		gpioMem[pullClkReg] = 0
 	}
-
-	// Wait for value to clock in, this is ugly, sorry :(
-	time.Sleep(time.Microsecond)
-
-	gpioMem[pullClkReg] = 1 << shift
-
-	// Wait for value to clock in
-	time.Sleep(time.Microsecond)
-
-	gpioMem[pullReg] &^= 3
-	gpioMem[pullClkReg] = 0
-
 }
 
 // SetFreq: Set clock speed for given pin in Clock or Pwm mode
