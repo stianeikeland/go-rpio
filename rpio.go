@@ -63,12 +63,15 @@ See the spec for full details of the BCM2835 controller:
 https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2835/BCM2835-ARM-Peripherals.pdf
 and https://elinux.org/BCM2835_datasheet_errata - for errors in that spec
 
+Changes to support the BCM2711, used on the Raspberry Pi 4, were cribbed from https://github.com/RPi-Distro/raspi-gpio/
+
 */
 package rpio
 
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"os"
 	"reflect"
 	"sync"
@@ -93,6 +96,14 @@ const (
 	intrOffset  = 0x00B000
 
 	memLength = 4096
+)
+
+// BCM 2711 has a different mechanism for pull-up/pull-down/enable
+const (
+	GPPUPPDN0 = 57        // Pin pull-up/down for pins 15:0 
+	GPPUPPDN1 = 58        // Pin pull-up/down for pins 31:16 
+	GPPUPPDN2 = 59        // Pin pull-up/down for pins 47:32 
+	GPPUPPDN3 = 60        // Pin pull-up/down for pins 57:48
 )
 
 var (
@@ -134,6 +145,7 @@ const (
 	PullOff Pull = iota
 	PullDown
 	PullUp
+	PullNone
 )
 
 // Edge events
@@ -237,6 +249,25 @@ func (pin Pin) PullDown() {
 // PullOff: Disable pullup/down on pin
 func (pin Pin) PullOff() {
 	PullMode(pin, PullOff)
+}
+
+func (pin Pin) ReadPull() Pull {
+	if !isBCM2711() {
+		return PullNone	// Can't read pull-up/pull-down state on other Pi boards
+	}
+
+	reg := GPPUPPDN0 + (uint8(pin) >> 4)
+	bits := gpioMem[reg] >> ((uint8(pin) & 0xf) << 1) & 0x3
+	switch bits {
+	case 0:
+		return PullOff
+	case 1:
+		return PullUp
+	case 2:
+		return PullDown
+	default:
+		return PullNone	// Invalid
+	}
 }
 
 // Detect: Enable edge event detection on pin
@@ -429,32 +460,54 @@ func EdgeDetected(pin Pin) bool {
 }
 
 func PullMode(pin Pin, pull Pull) {
-	// Pull up/down/off register has offset 38 / 39, pull is 37
-	pullClkReg := pin/32 + 38
-	pullReg := 37
-	shift := pin % 32
-
+		
 	memlock.Lock()
 	defer memlock.Unlock()
 
-	switch pull {
-	case PullDown, PullUp:
-		gpioMem[pullReg] |= uint32(pull)
-	case PullOff:
+	if isBCM2711() {
+		pullreg := GPPUPPDN0 + (pin >> 4)
+		pullshift := (pin & 0xf) << 1
+		
+		var p uint32 
+		
+		switch pull {
+		case PullOff:
+			p = 0
+		case PullUp:
+			p = 1
+		case PullDown:
+			p = 2;
+		}
+		
+		// This is verbatim C code from raspi-gpio.c
+		pullbits := gpioMem[pullreg]
+		pullbits &= ^(3 << pullshift)
+		pullbits |= (p << pullshift)
+		gpioMem[pullreg]= pullbits
+	} else {
+		// Pull up/down/off register has offset 38 / 39, pull is 37
+		pullClkReg := pin/32 + 38
+		pullReg := 37
+		shift := pin % 32
+		
+		switch pull {
+		case PullDown, PullUp:
+			gpioMem[pullReg] |= uint32(pull)
+		case PullOff:
+			gpioMem[pullReg] &^= 3
+		}
+		
+		// Wait for value to clock in, this is ugly, sorry :(
+		time.Sleep(time.Microsecond)
+		
+		gpioMem[pullClkReg] = 1 << shift
+		
+		// Wait for value to clock in
+		time.Sleep(time.Microsecond)
+		
 		gpioMem[pullReg] &^= 3
+		gpioMem[pullClkReg] = 0
 	}
-
-	// Wait for value to clock in, this is ugly, sorry :(
-	time.Sleep(time.Microsecond)
-
-	gpioMem[pullClkReg] = 1 << shift
-
-	// Wait for value to clock in
-	time.Sleep(time.Microsecond)
-
-	gpioMem[pullReg] &^= 3
-	gpioMem[pullClkReg] = 0
-
 }
 
 // SetFreq: Set clock speed for given pin in Clock or Pwm mode
@@ -714,23 +767,49 @@ func Close() error {
 
 // Read /proc/device-tree/soc/ranges and determine the base address.
 // Use the default Raspberry Pi 1 base address if this fails.
-func getBase() (base int64) {
-	base = bcm2835Base
+func readBase(offset int64) (int64, error) {
 	ranges, err := os.Open("/proc/device-tree/soc/ranges")
 	defer ranges.Close()
 	if err != nil {
-		return
+		return 0, err
 	}
 	b := make([]byte, 4)
-	n, err := ranges.ReadAt(b, 4)
+	n, err := ranges.ReadAt(b, offset)
 	if n != 4 || err != nil {
-		return
+		return 0, err
 	}
 	buf := bytes.NewReader(b)
 	var out uint32
 	err = binary.Read(buf, binary.BigEndian, &out)
 	if err != nil {
-		return
+		return 0, err
 	}
-	return int64(out)
+
+	if out == 0 {
+		return 0, errors.New("rpio: GPIO base address not found")
+	}
+	return int64(out), nil
+}
+
+func getBase() int64 {
+	// Pi 2 & 3 GPIO base address is at offset 4
+	b, err := readBase(4)
+	if err == nil {
+		return b
+	}
+
+	// Pi 4 GPIO base address is as offset 8
+	b, err = readBase(8)
+	if err == nil {
+		return b
+	}
+
+	// Default to Pi 1
+	return int64(bcm2835Base)
+}
+
+// The Pi 4 uses a BCM 2711, which has different register offsets and base addresses than the rest of the Pi family (so far).  This
+// helper function checks if we're on a 2711 and hence a Pi 4
+func isBCM2711() bool {
+	return gpioMem[GPPUPPDN3] != 0x6770696f
 }
