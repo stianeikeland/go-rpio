@@ -2,8 +2,8 @@
 
 A PWM example by @Drahoslav7, using the go-rpio library
 
-Toggles a LED on physical pin 19 (mcu pin 10)
-Connect a LED with resistor from pin 19 to ground.
+Toggles a LED on physical pin 35 (GPIO pin 19)
+Connect a LED with resistor from pin 35 to ground.
 
 */
 
