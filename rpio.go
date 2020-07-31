@@ -100,10 +100,10 @@ const (
 
 // BCM 2711 has a different mechanism for pull-up/pull-down/enable
 const (
-	GPPUPPDN0 = 57        // Pin pull-up/down for pins 15:0 
-	GPPUPPDN1 = 58        // Pin pull-up/down for pins 31:16 
-	GPPUPPDN2 = 59        // Pin pull-up/down for pins 47:32 
-	GPPUPPDN3 = 60        // Pin pull-up/down for pins 57:48
+	GPPUPPDN0 = 57 // Pin pull-up/down for pins 15:0
+	GPPUPPDN1 = 58 // Pin pull-up/down for pins 31:16
+	GPPUPPDN2 = 59 // Pin pull-up/down for pins 47:32
+	GPPUPPDN3 = 60 // Pin pull-up/down for pins 57:48
 )
 
 var (
@@ -259,7 +259,7 @@ func (pin Pin) PullOff() {
 
 func (pin Pin) ReadPull() Pull {
 	if !isBCM2711() {
-		return PullNone	// Can't read pull-up/pull-down state on other Pi boards
+		return PullNone // Can't read pull-up/pull-down state on other Pi boards
 	}
 
 	reg := GPPUPPDN0 + (uint8(pin) >> 4)
@@ -272,7 +272,7 @@ func (pin Pin) ReadPull() Pull {
 	case 2:
 		return PullDown
 	default:
-		return PullNone	// Invalid
+		return PullNone // Invalid
 	}
 }
 
@@ -284,6 +284,11 @@ func (pin Pin) Detect(edge Edge) {
 // EdgeDetected checks edge event on pin
 func (pin Pin) EdgeDetected() bool {
 	return EdgeDetected(pin)
+}
+
+// Get gpio mode
+func (pin Pin) ReadMode() uint32 {
+	return ReadPinMode(pin)
 }
 
 // PinMode sets the mode of a given pin (Input, Output, Clock, Pwm or Spi)
@@ -364,6 +369,21 @@ func PinMode(pin Pin, mode Mode) {
 	const pinMask = 7 // 111 - pinmode is 3 bits
 
 	gpioMem[fselReg] = (gpioMem[fselReg] &^ (pinMask << shift)) | (f << shift)
+}
+
+// Read pin Mod status。（gpio readall）
+// const in = 0   // 000
+// const out = 1  // 001
+// const alt0 = 4 // 100
+// const alt1 = 5 // 101
+// const alt2 = 6 // 110
+// const alt3 = 7 // 111
+// const alt4 = 3 // 011
+// const alt5 = 2 // 010
+func ReadPinMode(pin Pin) uint32 {
+	fselReg := uint8(pin) / 10
+	shift := (uint8(pin) % 10) * 3
+	return gpioMem[fselReg] >> shift & 7
 }
 
 // WritePin sets a given pin High or Low
@@ -481,51 +501,51 @@ func EdgeDetected(pin Pin) bool {
 }
 
 func PullMode(pin Pin, pull Pull) {
-		
+
 	memlock.Lock()
 	defer memlock.Unlock()
 
 	if isBCM2711() {
 		pullreg := GPPUPPDN0 + (pin >> 4)
 		pullshift := (pin & 0xf) << 1
-		
-		var p uint32 
-		
+
+		var p uint32
+
 		switch pull {
 		case PullOff:
 			p = 0
 		case PullUp:
 			p = 1
 		case PullDown:
-			p = 2;
+			p = 2
 		}
-		
+
 		// This is verbatim C code from raspi-gpio.c
 		pullbits := gpioMem[pullreg]
 		pullbits &= ^(3 << pullshift)
 		pullbits |= (p << pullshift)
-		gpioMem[pullreg]= pullbits
+		gpioMem[pullreg] = pullbits
 	} else {
 		// Pull up/down/off register has offset 38 / 39, pull is 37
 		pullClkReg := pin/32 + 38
 		pullReg := 37
 		shift := pin % 32
-		
+
 		switch pull {
 		case PullDown, PullUp:
 			gpioMem[pullReg] |= uint32(pull)
 		case PullOff:
 			gpioMem[pullReg] &^= 3
 		}
-		
+
 		// Wait for value to clock in, this is ugly, sorry :(
 		time.Sleep(time.Microsecond)
-		
+
 		gpioMem[pullClkReg] = 1 << shift
-		
+
 		// Wait for value to clock in
 		time.Sleep(time.Microsecond)
-		
+
 		gpioMem[pullReg] &^= 3
 		gpioMem[pullClkReg] = 0
 	}
