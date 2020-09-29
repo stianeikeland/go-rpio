@@ -81,7 +81,7 @@ import (
 )
 
 type Mode uint8
-type Pin uint8
+type Pin uint16
 type State uint8
 type Pull uint8
 type Edge uint8
