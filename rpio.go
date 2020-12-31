@@ -222,6 +222,12 @@ func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
 	SetDutyCycle(pin, dutyLen, cycleLen)
 }
 
+// DutyCycle: Set duty cycle for Pwm pin (see doc of SetDutyCycle)
+func (pin Pin) DutyCyclePercentage(freq int, dutyPercentage uint32) {
+	SetFreq(pin, freq * 100)
+	SetDutyCycle(pin, dutyPercentage, 100)
+}
+
 // Mode: Set pin Mode
 func (pin Pin) Mode(mode Mode) {
 	PinMode(pin, mode)
@@ -705,9 +711,9 @@ func Open() (err error) {
 	var file *os.File
 
 	// Open fd for rw mem access; try dev/mem first (need root)
-	file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
+	file, err = os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, os.ModePerm)
 	if os.IsPermission(err) { // try gpiomem otherwise (some extra functions like clock and pwm setting wont work)
-		file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
+		file, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, os.ModePerm)
 	}
 	if err != nil {
 		return
