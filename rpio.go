@@ -222,6 +222,12 @@ func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
 	SetDutyCycle(pin, dutyLen, cycleLen)
 }
 
+// DutyCycle: Set duty cycle for Pwm pin (see doc of SetDutyCycle)
+func (pin Pin) DutyCyclePercentage(freq int, dutyPercentage uint32) {
+	SetFreq(pin, freq * 100)
+	SetDutyCycle(pin, dutyPercentage, 100)
+}
+
 // Mode: Set pin Mode
 func (pin Pin) Mode(mode Mode) {
 	PinMode(pin, mode)
