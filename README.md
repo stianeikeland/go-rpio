@@ -19,11 +19,12 @@ There's a tiny bit of additional information over at my [blog](https://blog.eike
 - 1.0.0 - Supports original rpi A/B/B+
 - 2.0.0 - Adds support for rpi 2, by @akramer
 - 3.0.0 - Adds support for /dev/gpiomem, by @dotdoom
-- 4.0.0 - Adds support for PWM and Clock modes, by @Drahoslav7
-- 4.1.0 - Adds support for edge detection, by @Drahoslav7
-- 4.2.0 - Faster write and toggle of output pins, by @Drahoslav7
-- 4.3.0 - Adds support for SPI, by @Drahoslav7
-- 4.4.0 - Support for disabling interrupts (workaround for #35), by @Drahoslav7
+- 4.0.0 - Adds support for PWM and Clock modes, by @drahoslove
+- 4.1.0 - Adds support for edge detection, by @drahoslove
+- 4.2.0 - Faster write and toggle of output pins, by @drahoslove
+- 4.3.0 - Adds support for SPI, by @drahoslove
+- 4.4.0 - Support for disabling interrupts (workaround for #35), by @drahoslove
+- 4.5.0 - Improve rpi 4 support, by @wfd3
 
 ## Usage ##
 
