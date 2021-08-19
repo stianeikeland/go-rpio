@@ -3,7 +3,7 @@ go-rpio
 
 Native GPIO-Gophers for your Pi!
 
-**Documentation:** [![GoDoc](https://godoc.org/github.com/stianeikeland/go-rpio?status.svg)](https://godoc.org/github.com/stianeikeland/go-rpio)
+**Documentation:** [![GoDoc](https://pkg.go.dev/badge/github.com/stianeikeland/go-rpio)](https://pkg.go.dev/github.com/stianeikeland/go-rpio/v4)
 
 go-rpio is a Go library for accessing [GPIO](http://elinux.org/Rpi_Low-level_peripherals)-pins
 on the [Raspberry Pi](https://en.wikipedia.org/wiki/Raspberry_Pi).
@@ -33,7 +33,6 @@ import "github.com/stianeikeland/go-rpio/v4"
 ```
 
 If you're using an older go.mod incompatible you should instead use:
-
 ```go
 import "github.com/stianeikeland/go-rpio"
 ```
