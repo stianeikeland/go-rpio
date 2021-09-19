@@ -13,7 +13,7 @@ It requires no external c libraries such as
 
 There's a tiny bit of additional information over at my [blog](https://blog.eikeland.se/2013/07/30/go-gpio-library-for-raspberry-pi/).
 
-![raspberrypi-blink](http://stianeikeland.files.wordpress.com/2013/07/animated.gif)
+![raspberrypi-blink](https://blog.eikeland.se/images/2013-07-30-go-gpio-library-for-raspberry-pi/animated.gif)
 
 ## Releases ##
 - 1.0.0 - Supports original rpi A/B/B+
