@@ -546,7 +546,10 @@ func PullMode(pin Pin, pull Pull) {
 //   pwm_clk: pins 12, 13, 18, 19, 40, 41, 45
 func SetFreq(pin Pin, freq int) {
 	// TODO: would be nice to choose best clock source depending on target frequency, oscilator is used for now
-	const sourceFreq = 19200000 // oscilator frequency
+	sourceFreq := 19200000 // oscilator frequency
+	if isBCM2711() {
+		sourceFreq = 52000000
+	}
 	const divMask = 4095        // divi and divf have 12 bits each
 
 	divi := uint32(sourceFreq / freq)
