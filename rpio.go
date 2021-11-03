@@ -100,10 +100,10 @@ const (
 
 // BCM 2711 has a different mechanism for pull-up/pull-down/enable
 const (
-	GPPUPPDN0 = 57        // Pin pull-up/down for pins 15:0 
-	GPPUPPDN1 = 58        // Pin pull-up/down for pins 31:16 
-	GPPUPPDN2 = 59        // Pin pull-up/down for pins 47:32 
-	GPPUPPDN3 = 60        // Pin pull-up/down for pins 57:48
+	GPPUPPDN0 = 57 // Pin pull-up/down for pins 15:0
+	GPPUPPDN1 = 58 // Pin pull-up/down for pins 31:16
+	GPPUPPDN2 = 59 // Pin pull-up/down for pins 47:32
+	GPPUPPDN3 = 60 // Pin pull-up/down for pins 57:48
 )
 
 var (
@@ -144,6 +144,12 @@ const (
 const (
 	Low State = iota
 	High
+)
+
+// Which PWM algorithm to use, Balanced or Mark/Space
+const (
+	Balanced = iota
+	MarkSpace
 )
 
 // Pull Up / Down / Off
@@ -222,6 +228,11 @@ func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
 	SetDutyCycle(pin, dutyLen, cycleLen)
 }
 
+// DutyCycleMsen: Set duty cycle for Pwm pin (see doc of SetDutyCycle)
+func (pin Pin) DutyCycleMsen(dutyLen, cycleLen, msen uint32) {
+	SetDutyCycleMsen(pin, dutyLen, cycleLen, msen)
+}
+
 // Mode: Set pin Mode
 func (pin Pin) Mode(mode Mode) {
 	PinMode(pin, mode)
@@ -259,7 +270,7 @@ func (pin Pin) PullOff() {
 
 func (pin Pin) ReadPull() Pull {
 	if !isBCM2711() {
-		return PullNone	// Can't read pull-up/pull-down state on other Pi boards
+		return PullNone // Can't read pull-up/pull-down state on other Pi boards
 	}
 
 	reg := GPPUPPDN0 + (uint8(pin) >> 4)
@@ -272,7 +283,7 @@ func (pin Pin) ReadPull() Pull {
 	case 2:
 		return PullDown
 	default:
-		return PullNone	// Invalid
+		return PullNone // Invalid
 	}
 }
 
@@ -481,51 +492,51 @@ func EdgeDetected(pin Pin) bool {
 }
 
 func PullMode(pin Pin, pull Pull) {
-		
+
 	memlock.Lock()
 	defer memlock.Unlock()
 
 	if isBCM2711() {
 		pullreg := GPPUPPDN0 + (pin >> 4)
 		pullshift := (pin & 0xf) << 1
-		
-		var p uint32 
-		
+
+		var p uint32
+
 		switch pull {
 		case PullOff:
 			p = 0
 		case PullUp:
 			p = 1
 		case PullDown:
-			p = 2;
+			p = 2
 		}
-		
+
 		// This is verbatim C code from raspi-gpio.c
 		pullbits := gpioMem[pullreg]
 		pullbits &= ^(3 << pullshift)
 		pullbits |= (p << pullshift)
-		gpioMem[pullreg]= pullbits
+		gpioMem[pullreg] = pullbits
 	} else {
 		// Pull up/down/off register has offset 38 / 39, pull is 37
 		pullClkReg := pin/32 + 38
 		pullReg := 37
 		shift := pin % 32
-		
+
 		switch pull {
 		case PullDown, PullUp:
 			gpioMem[pullReg] |= uint32(pull)
 		case PullOff:
 			gpioMem[pullReg] &^= 3
 		}
-		
+
 		// Wait for value to clock in, this is ugly, sorry :(
 		time.Sleep(time.Microsecond)
-		
+
 		gpioMem[pullClkReg] = 1 << shift
-		
+
 		// Wait for value to clock in
 		time.Sleep(time.Microsecond)
-		
+
 		gpioMem[pullReg] &^= 3
 		gpioMem[pullClkReg] = 0
 	}
@@ -550,7 +561,7 @@ func SetFreq(pin Pin, freq int) {
 	if isBCM2711() {
 		sourceFreq = 52000000
 	}
-	const divMask = 4095        // divi and divf have 12 bits each
+	const divMask = 4095 // divi and divf have 12 bits each
 
 	divi := uint32(sourceFreq / freq)
 	divf := uint32(((sourceFreq % freq) << 12) / freq)
@@ -628,11 +639,22 @@ func SetFreq(pin Pin, freq int) {
 //   channel 1 (pwm0) for pins 12, 18, 40
 //   channel 2 (pwm1) for pins 13, 19, 41, 45.
 func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
+	SetDutyCycleMsen(pin, dutyLen, cycleLen, 1) // Default PWM algorithm is Mark/Space, msen = 1
+
+}
+
+// SetDutyCycleMsen extends SetDutyCycle to allow for the specification of the PWM
+// algorithm to be used, Balanced or Mark/Space. 'msen' is used to indicate which
+// PWM algorithm to use. The constants Balanced or Markspace should be used as the
+// value. See 'SetDutyCycle(pin, dutyLen, cycleLen)' above for more information
+// regarding how to use 'SetDutyCycleMsen()'
+func SetDutyCycleMsen(pin Pin, dutyLen, cycleLen, msen uint32) {
 	const pwmCtlReg = 0
 	var (
 		pwmDatReg uint
 		pwmRngReg uint
 		shift     uint // offset inside ctlReg
+
 	)
 
 	switch pin {
@@ -646,11 +668,12 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 		shift = 8
 	default:
 		return
+
 	}
 
 	const ctlMask = 255 // ctl setting has 8 bits for each channel
 	const pwen = 1 << 0 // enable pwm
-	const msen = 1 << 7 // use M/S transition instead of pwm algorithm
+	msen = msen << 7
 
 	// reset settings
 	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift | pwen<<shift
@@ -660,6 +683,7 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 	time.Sleep(time.Microsecond * 10)
 
 	// NOTE without root permission this changes will simply do nothing successfully
+
 }
 
 // StopPwm: Stop pwm for both channels
