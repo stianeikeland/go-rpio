@@ -61,8 +61,11 @@ func SpiEnd(dev SpiDev) {
 // Param speed may be as big as 125MHz in theory, but
 // only values up to 31.25MHz are considered relayable.
 func SpiSpeed(speed int) {
-	const baseFreq = 250 * 1000000
-	cdiv := uint32(baseFreq / speed)
+	coreFreq := 250 * 1000000
+	if isBCM2711() {
+		coreFreq = 550 * 1000000
+	}
+	cdiv := uint32(coreFreq / speed)
 	setSpiDiv(cdiv)
 }
 
