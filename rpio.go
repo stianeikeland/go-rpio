@@ -3,65 +3,65 @@ Package rpio provides GPIO access on the Raspberry PI without any need
 for external c libraries (eg. WiringPi or BCM2835).
 
 Supports simple operations such as:
-	- Pin mode/direction (input/output/clock/pwm,alt0,alt1,alt2,alt3,alt4,alt5)
-	- Pin write (high/low)
-	- Pin read (high/low)
-	- Pin edge detection (no/rise/fall/any)
-	- Pull up/down/off
+    - Pin mode/direction (input/output/clock/pwm,alt0,alt1,alt2,alt3,alt4,alt5)
+    - Pin write (high/low)
+    - Pin read (high/low)
+    - Pin edge detection (no/rise/fall/any)
+    - Pull up/down/off
 Also clock/pwm related oparations:
-	- Set Clock frequency
-	- Set Duty cycle
+    - Set Clock frequency
+    - Set Duty cycle
 And SPI oparations:
-	- SPI transmit/recieve/exchange bytes
-	- Chip select
-	- Set speed
+    - SPI transmit/recieve/exchange bytes
+    - Chip select
+    - Set speed
 
 Example of use:
 
-	rpio.Open()
-	defer rpio.Close()
+    rpio.Open()
+    defer rpio.Close()
 
-	pin := rpio.Pin(4)
-	pin.Output()
+    pin := rpio.Pin(4)
+    pin.Output()
 
-	for {
-		pin.Toggle()
-		time.Sleep(time.Second)
-	}
+    for {
+        pin.Toggle()
+        time.Sleep(time.Second)
+    }
 
 The library use the raw BCM2835 pinouts, not the ports as they are mapped
 on the output pins for the raspberry pi, and not the wiringPi convention.
 
-            Rev 2 and 3 Raspberry Pi                        Rev 1 Raspberry Pi (legacy)
-  +-----+---------+----------+---------+-----+      +-----+--------+----------+--------+-----+
-  | BCM |   Name  | Physical | Name    | BCM |      | BCM | Name   | Physical | Name   | BCM |
-  +-----+---------+----++----+---------+-----+      +-----+--------+----++----+--------+-----+
-  |     |    3.3v |  1 || 2  | 5v      |     |      |     | 3.3v   |  1 ||  2 | 5v     |     |
-  |   2 |   SDA 1 |  3 || 4  | 5v      |     |      |   0 | SDA    |  3 ||  4 | 5v     |     |
-  |   3 |   SCL 1 |  5 || 6  | 0v      |     |      |   1 | SCL    |  5 ||  6 | 0v     |     |
-  |   4 | GPIO  7 |  7 || 8  | TxD     | 14  |      |   4 | GPIO 7 |  7 ||  8 | TxD    |  14 |
-  |     |      0v |  9 || 10 | RxD     | 15  |      |     | 0v     |  9 || 10 | RxD    |  15 |
-  |  17 | GPIO  0 | 11 || 12 | GPIO  1 | 18  |      |  17 | GPIO 0 | 11 || 12 | GPIO 1 |  18 |
-  |  27 | GPIO  2 | 13 || 14 | 0v      |     |      |  21 | GPIO 2 | 13 || 14 | 0v     |     |
-  |  22 | GPIO  3 | 15 || 16 | GPIO  4 | 23  |      |  22 | GPIO 3 | 15 || 16 | GPIO 4 |  23 |
-  |     |    3.3v | 17 || 18 | GPIO  5 | 24  |      |     | 3.3v   | 17 || 18 | GPIO 5 |  24 |
-  |  10 |    MOSI | 19 || 20 | 0v      |     |      |  10 | MOSI   | 19 || 20 | 0v     |     |
-  |   9 |    MISO | 21 || 22 | GPIO  6 | 25  |      |   9 | MISO   | 21 || 22 | GPIO 6 |  25 |
-  |  11 |    SCLK | 23 || 24 | CE0     | 8   |      |  11 | SCLK   | 23 || 24 | CE0    |   8 |
-  |     |      0v | 25 || 26 | CE1     | 7   |      |     | 0v     | 25 || 26 | CE1    |   7 |
-  |   0 |   SDA 0 | 27 || 28 | SCL 0   | 1   |      +-----+--------+----++----+--------+-----+
-  |   5 | GPIO 21 | 29 || 30 | 0v      |     |
-  |   6 | GPIO 22 | 31 || 32 | GPIO 26 | 12  |
-  |  13 | GPIO 23 | 33 || 34 | 0v      |     |
-  |  19 | GPIO 24 | 35 || 36 | GPIO 27 | 16  |
-  |  26 | GPIO 25 | 37 || 38 | GPIO 28 | 20  |
-  |     |      0v | 39 || 40 | GPIO 29 | 21  |
-  +-----+---------+----++----+---------+-----+
+    Rev 2 and 3 Raspberry Pi                        Rev 1 Raspberry Pi (legacy)
+    +-----+---------+----------+---------+-----+      +-----+--------+----------+--------+-----+
+    | BCM |   Name  | Physical | Name    | BCM |      | BCM | Name   | Physical | Name   | BCM |
+    +-----+---------+----++----+---------+-----+      +-----+--------+----++----+--------+-----+
+    |     |    3.3v |  1 || 2  | 5v      |     |      |     | 3.3v   |  1 ||  2 | 5v     |     |
+    |   2 |   SDA 1 |  3 || 4  | 5v      |     |      |   0 | SDA    |  3 ||  4 | 5v     |     |
+    |   3 |   SCL 1 |  5 || 6  | 0v      |     |      |   1 | SCL    |  5 ||  6 | 0v     |     |
+    |   4 | GPIO  7 |  7 || 8  | TxD     | 14  |      |   4 | GPIO 7 |  7 ||  8 | TxD    |  14 |
+    |     |      0v |  9 || 10 | RxD     | 15  |      |     | 0v     |  9 || 10 | RxD    |  15 |
+    |  17 | GPIO  0 | 11 || 12 | GPIO  1 | 18  |      |  17 | GPIO 0 | 11 || 12 | GPIO 1 |  18 |
+    |  27 | GPIO  2 | 13 || 14 | 0v      |     |      |  21 | GPIO 2 | 13 || 14 | 0v     |     |
+    |  22 | GPIO  3 | 15 || 16 | GPIO  4 | 23  |      |  22 | GPIO 3 | 15 || 16 | GPIO 4 |  23 |
+    |     |    3.3v | 17 || 18 | GPIO  5 | 24  |      |     | 3.3v   | 17 || 18 | GPIO 5 |  24 |
+    |  10 |    MOSI | 19 || 20 | 0v      |     |      |  10 | MOSI   | 19 || 20 | 0v     |     |
+    |   9 |    MISO | 21 || 22 | GPIO  6 | 25  |      |   9 | MISO   | 21 || 22 | GPIO 6 |  25 |
+    |  11 |    SCLK | 23 || 24 | CE0     | 8   |      |  11 | SCLK   | 23 || 24 | CE0    |   8 |
+    |     |      0v | 25 || 26 | CE1     | 7   |      |     | 0v     | 25 || 26 | CE1    |   7 |
+    |   0 |   SDA 0 | 27 || 28 | SCL 0   | 1   |      +-----+--------+----++----+--------+-----+
+    |   5 | GPIO 21 | 29 || 30 | 0v      |     |
+    |   6 | GPIO 22 | 31 || 32 | GPIO 26 | 12  |
+    |  13 | GPIO 23 | 33 || 34 | 0v      |     |
+    |  19 | GPIO 24 | 35 || 36 | GPIO 27 | 16  |
+    |  26 | GPIO 25 | 37 || 38 | GPIO 28 | 20  |
+    |     |      0v | 39 || 40 | GPIO 29 | 21  |
+    +-----+---------+----++----+---------+-----+
 
 See the spec for full details of the BCM2835 controller:
 
-https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2835/BCM2835-ARM-Peripherals.pdf
-and https://elinux.org/BCM2835_datasheet_errata - for errors in that spec
+    https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2835/BCM2835-ARM-Peripherals.pdf
+    and https://elinux.org/BCM2835_datasheet_errata - for errors in that spec
 
 Changes to support the BCM2711, used on the Raspberry Pi 4, were cribbed from https://github.com/RPi-Distro/raspi-gpio/
 
@@ -148,8 +148,8 @@ const (
 
 // Which PWM algorithm to use, Balanced or Mark/Space
 const (
-	Balanced = iota
-	MarkSpace
+	Balanced  = true
+	MarkSpace = false
 )
 
 // Pull Up / Down / Off
@@ -228,9 +228,10 @@ func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
 	SetDutyCycle(pin, dutyLen, cycleLen)
 }
 
-// DutyCycleMsen: Set duty cycle for Pwm pin (see doc of SetDutyCycle)
-func (pin Pin) DutyCycleMsen(dutyLen, cycleLen, msen uint32) {
-	SetDutyCycleMsen(pin, dutyLen, cycleLen, msen)
+// DutyCycleWithPwmMode: Set duty cycle for Pwm pin while also specifying which PWM
+// mode to use, Balanced or MarkSpace (see doc of SetDutyCycleWithPwmMode)
+func (pin Pin) DutyCycleWithPwmMode(dutyLen, cycleLen uint32, mode bool) {
+	SetDutyCycleWithPwmMode(pin, dutyLen, cycleLen, mode)
 }
 
 // Mode: Set pin Mode
@@ -638,17 +639,20 @@ func SetFreq(pin Pin, freq int) {
 // The channels are:
 //   channel 1 (pwm0) for pins 12, 18, 40
 //   channel 2 (pwm1) for pins 13, 19, 41, 45.
+//
+// NOTE without root permission this function will simply do nothing successfully
 func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
-	SetDutyCycleMsen(pin, dutyLen, cycleLen, 1) // Default PWM algorithm is Mark/Space, msen = 1
+	SetDutyCycleWithPwmMode(pin, dutyLen, cycleLen, MarkSpace)
 
 }
 
-// SetDutyCycleMsen extends SetDutyCycle to allow for the specification of the PWM
-// algorithm to be used, Balanced or Mark/Space. 'msen' is used to indicate which
-// PWM algorithm to use. The constants Balanced or Markspace should be used as the
-// value. See 'SetDutyCycle(pin, dutyLen, cycleLen)' above for more information
-// regarding how to use 'SetDutyCycleMsen()'
-func SetDutyCycleMsen(pin Pin, dutyLen, cycleLen, msen uint32) {
+// SetDutyCycleWithPwmMode extends SetDutyCycle to allow for the specification of the PWM
+// algorithm to be used, Balanced or Mark/Space. The constants Balanced or MarkSpace
+// as the value. See 'SetDutyCycle(pin, dutyLen, cycleLen)' above for more information
+// regarding how to use 'SetDutyCycleWithPwmMode()'.
+//
+// NOTE without root permission this function will simply do nothing successfully
+func SetDutyCycleWithPwmMode(pin Pin, dutyLen, cycleLen uint32, mode bool) {
 	const pwmCtlReg = 0
 	var (
 		pwmDatReg uint
@@ -673,17 +677,24 @@ func SetDutyCycleMsen(pin Pin, dutyLen, cycleLen, msen uint32) {
 
 	const ctlMask = 255 // ctl setting has 8 bits for each channel
 	const pwen = 1 << 0 // enable pwm
-	msen = msen << 7
+	var msen uint32 = 0
+	// The MSEN1 field in the CTL register is at offset 7. This block starts with the assumption
+	// that 'msen' will be associated with channel 'pwm0'. If this is not the case, 'msen' will
+	// be further shifted in the next code block below to the MSEN2 field at offset 15.
+	if mode == MarkSpace {
+		msen = 1 << 7
+	}
 
-	// reset settings
+	// Shifting 'pwen' and 'msen' puts the associated values at the correct offset within the CTL
+	// register ('pwmCtlReg'). In addition, 'msen' is associated with a PWM channel depending on the
+	// value of 'pin' (see above). 'msen' will either stay at offset 7, as set above for channel 'pwm0',
+	// or be shifted 8 bits if the the associated 'pin' is on channel 'pwm1'.
 	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift | pwen<<shift
+
 	// set duty cycle
 	pwmMem[pwmDatReg] = dutyLen
 	pwmMem[pwmRngReg] = cycleLen
 	time.Sleep(time.Microsecond * 10)
-
-	// NOTE without root permission this changes will simply do nothing successfully
-
 }
 
 // StopPwm: Stop pwm for both channels
