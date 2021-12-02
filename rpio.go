@@ -3,31 +3,31 @@ Package rpio provides GPIO access on the Raspberry PI without any need
 for external c libraries (eg. WiringPi or BCM2835).
 
 Supports simple operations such as:
-	- Pin mode/direction (input/output/clock/pwm,alt0,alt1,alt2,alt3,alt4,alt5)
-	- Pin write (high/low)
-	- Pin read (high/low)
-	- Pin edge detection (no/rise/fall/any)
-	- Pull up/down/off
+       - Pin mode/direction (input/output/clock/pwm,alt0,alt1,alt2,alt3,alt4,alt5)
+       - Pin write (high/low)
+       - Pin read (high/low)
+       - Pin edge detection (no/rise/fall/any)
+       - Pull up/down/off
 Also clock/pwm related oparations:
-	- Set Clock frequency
-	- Set Duty cycle
+       - Set Clock frequency
+       - Set Duty cycle
 And SPI oparations:
-	- SPI transmit/recieve/exchange bytes
-	- Chip select
-	- Set speed
+       - SPI transmit/recieve/exchange bytes
+       - Set speed
+       - Chip select
 
 Example of use:
 
-	rpio.Open()
-	defer rpio.Close()
+       rpio.Open()
+       defer rpio.Close()
 
-	pin := rpio.Pin(4)
-	pin.Output()
+       pin := rpio.Pin(4)
+       pin.Output()
 
-	for {
-		pin.Toggle()
-		time.Sleep(time.Second)
-	}
+       for {
+           pin.Toggle()
+           time.Sleep(time.Second)
+       }
 
 The library use the raw BCM2835 pinouts, not the ports as they are mapped
 on the output pins for the raspberry pi, and not the wiringPi convention.
@@ -100,10 +100,10 @@ const (
 
 // BCM 2711 has a different mechanism for pull-up/pull-down/enable
 const (
-	GPPUPPDN0 = 57        // Pin pull-up/down for pins 15:0 
-	GPPUPPDN1 = 58        // Pin pull-up/down for pins 31:16 
-	GPPUPPDN2 = 59        // Pin pull-up/down for pins 47:32 
-	GPPUPPDN3 = 60        // Pin pull-up/down for pins 57:48
+	GPPUPPDN0 = 57 // Pin pull-up/down for pins 15:0
+	GPPUPPDN1 = 58 // Pin pull-up/down for pins 31:16
+	GPPUPPDN2 = 59 // Pin pull-up/down for pins 47:32
+	GPPUPPDN3 = 60 // Pin pull-up/down for pins 57:48
 )
 
 var (
@@ -144,6 +144,12 @@ const (
 const (
 	Low State = iota
 	High
+)
+
+// Which PWM algorithm to use, Balanced or Mark/Space
+const (
+	Balanced  = true
+	MarkSpace = false
 )
 
 // Pull Up / Down / Off
@@ -222,6 +228,12 @@ func (pin Pin) DutyCycle(dutyLen, cycleLen uint32) {
 	SetDutyCycle(pin, dutyLen, cycleLen)
 }
 
+// DutyCycleWithPwmMode: Set duty cycle for Pwm pin while also specifying which PWM
+// mode to use, Balanced or MarkSpace (see doc of SetDutyCycleWithPwmMode)
+func (pin Pin) DutyCycleWithPwmMode(dutyLen, cycleLen uint32, mode bool) {
+	SetDutyCycleWithPwmMode(pin, dutyLen, cycleLen, mode)
+}
+
 // Mode: Set pin Mode
 func (pin Pin) Mode(mode Mode) {
 	PinMode(pin, mode)
@@ -259,7 +271,7 @@ func (pin Pin) PullOff() {
 
 func (pin Pin) ReadPull() Pull {
 	if !isBCM2711() {
-		return PullNone	// Can't read pull-up/pull-down state on other Pi boards
+		return PullNone // Can't read pull-up/pull-down state on other Pi boards
 	}
 
 	reg := GPPUPPDN0 + (uint8(pin) >> 4)
@@ -272,7 +284,7 @@ func (pin Pin) ReadPull() Pull {
 	case 2:
 		return PullDown
 	default:
-		return PullNone	// Invalid
+		return PullNone // Invalid
 	}
 }
 
@@ -481,51 +493,51 @@ func EdgeDetected(pin Pin) bool {
 }
 
 func PullMode(pin Pin, pull Pull) {
-		
+
 	memlock.Lock()
 	defer memlock.Unlock()
 
 	if isBCM2711() {
 		pullreg := GPPUPPDN0 + (pin >> 4)
 		pullshift := (pin & 0xf) << 1
-		
-		var p uint32 
-		
+
+		var p uint32
+
 		switch pull {
 		case PullOff:
 			p = 0
 		case PullUp:
 			p = 1
 		case PullDown:
-			p = 2;
+			p = 2
 		}
-		
+
 		// This is verbatim C code from raspi-gpio.c
 		pullbits := gpioMem[pullreg]
 		pullbits &= ^(3 << pullshift)
 		pullbits |= (p << pullshift)
-		gpioMem[pullreg]= pullbits
+		gpioMem[pullreg] = pullbits
 	} else {
 		// Pull up/down/off register has offset 38 / 39, pull is 37
 		pullClkReg := pin/32 + 38
 		pullReg := 37
 		shift := pin % 32
-		
+
 		switch pull {
 		case PullDown, PullUp:
 			gpioMem[pullReg] |= uint32(pull)
 		case PullOff:
 			gpioMem[pullReg] &^= 3
 		}
-		
+
 		// Wait for value to clock in, this is ugly, sorry :(
 		time.Sleep(time.Microsecond)
-		
+
 		gpioMem[pullClkReg] = 1 << shift
-		
+
 		// Wait for value to clock in
 		time.Sleep(time.Microsecond)
-		
+
 		gpioMem[pullReg] &^= 3
 		gpioMem[pullClkReg] = 0
 	}
@@ -550,7 +562,7 @@ func SetFreq(pin Pin, freq int) {
 	if isBCM2711() {
 		sourceFreq = 52000000
 	}
-	const divMask = 4095        // divi and divf have 12 bits each
+	const divMask = 4095 // divi and divf have 12 bits each
 
 	divi := uint32(sourceFreq / freq)
 	divf := uint32(((sourceFreq % freq) << 12) / freq)
@@ -627,12 +639,26 @@ func SetFreq(pin Pin, freq int) {
 // The channels are:
 //   channel 1 (pwm0) for pins 12, 18, 40
 //   channel 2 (pwm1) for pins 13, 19, 41, 45.
+//
+// NOTE without root permission this function will simply do nothing successfully
 func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
+	SetDutyCycleWithPwmMode(pin, dutyLen, cycleLen, MarkSpace)
+
+}
+
+// SetDutyCycleWithPwmMode extends SetDutyCycle to allow for the specification of the PWM
+// algorithm to be used, Balanced or Mark/Space. The constants Balanced or MarkSpace
+// as the value. See 'SetDutyCycle(pin, dutyLen, cycleLen)' above for more information
+// regarding how to use 'SetDutyCycleWithPwmMode()'.
+//
+// NOTE without root permission this function will simply do nothing successfully
+func SetDutyCycleWithPwmMode(pin Pin, dutyLen, cycleLen uint32, mode bool) {
 	const pwmCtlReg = 0
 	var (
 		pwmDatReg uint
 		pwmRngReg uint
 		shift     uint // offset inside ctlReg
+
 	)
 
 	switch pin {
@@ -646,20 +672,29 @@ func SetDutyCycle(pin Pin, dutyLen, cycleLen uint32) {
 		shift = 8
 	default:
 		return
+
 	}
 
 	const ctlMask = 255 // ctl setting has 8 bits for each channel
 	const pwen = 1 << 0 // enable pwm
-	const msen = 1 << 7 // use M/S transition instead of pwm algorithm
+	var msen uint32 = 0
+	// The MSEN1 field in the CTL register is at offset 7. This block starts with the assumption
+	// that 'msen' will be associated with channel 'pwm0'. If this is not the case, 'msen' will
+	// be further shifted in the next code block below to the MSEN2 field at offset 15.
+	if mode == MarkSpace {
+		msen = 1 << 7
+	}
 
-	// reset settings
+	// Shifting 'pwen' and 'msen' puts the associated values at the correct offset within the CTL
+	// register ('pwmCtlReg'). In addition, 'msen' is associated with a PWM channel depending on the
+	// value of 'pin' (see above). 'msen' will either stay at offset 7, as set above for channel 'pwm0',
+	// or be shifted 8 bits if the the associated 'pin' is on channel 'pwm1'.
 	pwmMem[pwmCtlReg] = pwmMem[pwmCtlReg]&^(ctlMask<<shift) | msen<<shift | pwen<<shift
+
 	// set duty cycle
 	pwmMem[pwmDatReg] = dutyLen
 	pwmMem[pwmRngReg] = cycleLen
 	time.Sleep(time.Microsecond * 10)
-
-	// NOTE without root permission this changes will simply do nothing successfully
 }
 
 // StopPwm: Stop pwm for both channels
