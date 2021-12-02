@@ -25,6 +25,7 @@ There's a tiny bit of additional information over at my [blog](https://blog.eike
 - 4.3.0 - Adds support for SPI, by @drahoslove
 - 4.4.0 - Support for disabling interrupts (workaround for #35), by @drahoslove
 - 4.5.0 - Improve rpi 4 support, by @wfd3
+- 4.6.0 - Adds Balanced PWM mode, by @youngkin
 
 ## Usage ##
 
