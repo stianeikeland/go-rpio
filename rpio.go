@@ -298,6 +298,11 @@ func (pin Pin) EdgeDetected() bool {
 	return EdgeDetected(pin)
 }
 
+// Get gpio mode
+func (pin Pin) ReadMode() uint32 {
+	return ReadPinMode(pin)
+}
+
 // PinMode sets the mode of a given pin (Input, Output, Clock, Pwm or Spi)
 //
 // Clock is possible only for pins 4, 5, 6, 20, 21.
@@ -376,6 +381,21 @@ func PinMode(pin Pin, mode Mode) {
 	const pinMask = 7 // 111 - pinmode is 3 bits
 
 	gpioMem[fselReg] = (gpioMem[fselReg] &^ (pinMask << shift)) | (f << shift)
+}
+
+// Read pin Mod status。（gpio readall）
+// const in = 0   // 000
+// const out = 1  // 001
+// const alt0 = 4 // 100
+// const alt1 = 5 // 101
+// const alt2 = 6 // 110
+// const alt3 = 7 // 111
+// const alt4 = 3 // 011
+// const alt5 = 2 // 010
+func ReadPinMode(pin Pin) uint32 {
+	fselReg := uint8(pin) / 10
+	shift := (uint8(pin) % 10) * 3
+	return gpioMem[fselReg] >> shift & 7
 }
 
 // WritePin sets a given pin High or Low
