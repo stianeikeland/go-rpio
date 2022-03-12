@@ -39,7 +39,7 @@ func main() {
 	fmt.Println("press a button")
 
 	for i := 0; i < 2; {
-		if pin.EdgeDetected() { // check if event occured
+		if pin.EdgeDetected() { // check if event occurred
 			fmt.Println("button pressed")
 			i++
 		}

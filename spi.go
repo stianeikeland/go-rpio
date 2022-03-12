@@ -21,6 +21,7 @@ const (
 )
 
 var (
+	// Will not fix this error's naming (would be a breaking change)
 	SpiMapError = errors.New("SPI registers not mapped correctly - are you root?")
 )
 
@@ -118,7 +119,7 @@ func SpiMode(polarity uint8, phase uint8) {
 // Data received from slave are ignored.
 // Use spread operator to send slice of bytes.
 func SpiTransmit(data ...byte) {
-	SpiExchange(append(data[:0:0], data...)) // clone data because it will be rewriten by received bytes
+	SpiExchange(append(data[:0:0], data...)) // clone data because it will be rewritten by received bytes
 }
 
 // SpiReceive receives n bytes from slave.
@@ -183,7 +184,7 @@ func getSpiPins(dev SpiDev) []Pin {
 	switch dev {
 	case Spi0:
 		return []Pin{7, 8, 9, 10, 11}
-		// ommit 35, 36, 37, 38, 39 - only one set of SPI0 can be set in Spi mode at a time
+		// omit 35, 36, 37, 38, 39 - only one set of SPI0 can be set in Spi mode at a time
 	case Spi1:
 		return []Pin{16, 17, 18, 19, 20, 21}
 	case Spi2:

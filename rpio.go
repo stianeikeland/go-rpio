@@ -8,11 +8,11 @@ Supports simple operations such as:
        - Pin read (high/low)
        - Pin edge detection (no/rise/fall/any)
        - Pull up/down/off
-Also clock/pwm related oparations:
+Also clock/pwm related operations:
        - Set Clock frequency
        - Set Duty cycle
-And SPI oparations:
-       - SPI transmit/recieve/exchange bytes
+And SPI operations:
+       - SPI transmit/receive/exchange bytes
        - Set speed
        - Chip select
 
@@ -264,7 +264,7 @@ func (pin Pin) PullDown() {
 	PullMode(pin, PullDown)
 }
 
-// PullOff: Disable pullup/down on pin
+// PullOff: Disable pullup or pulldown on pin
 func (pin Pin) PullOff() {
 	PullMode(pin, PullOff)
 }
