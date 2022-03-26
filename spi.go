@@ -65,7 +65,7 @@ func SpiSpeed(speed int) {
 	if isBCM2711() {
 		coreFreq = 550 * 1000000
 	}
-	cdiv := uint32((coreFreq + 2*speed) / speed)
+	cdiv := uint32((coreFreq + 2*speed - 1) / speed)
 	setSpiDiv(cdiv)
 }
 
