@@ -73,7 +73,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"os"
-	"reflect"
 	"sync"
 	"syscall"
 	"time"
@@ -803,10 +802,7 @@ func memMap(fd uintptr, base int64) (mem []uint32, mem8 []byte, err error) {
 		return
 	}
 	// Convert mapped byte memory to unsafe []uint32 pointer, adjust length as needed
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&mem8))
-	header.Len /= (32 / 8) // (32 bit = 4 bytes)
-	header.Cap /= (32 / 8)
-	mem = *(*[]uint32)(unsafe.Pointer(&header))
+	mem = unsafe.Slice((*uint32)(unsafe.Pointer(unsafe.SliceData(mem8))), len(mem8)/4)
 	return
 }
 
